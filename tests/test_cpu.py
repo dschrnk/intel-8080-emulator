@@ -14,7 +14,7 @@ def test_cpu():
 
     cpu.exec()
     assert(
-        cpu.get_B(),
+        cpu.regs[CPU.B],
         cpu.regs[CPU.C],
         cpu.alu.ACC
     ) == (

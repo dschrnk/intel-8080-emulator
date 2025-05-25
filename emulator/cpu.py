@@ -1,27 +1,17 @@
 from .alu import *
 from .core import DAD, INX
 
-# Registers
-B = 0
-C = 1
-D = 2
-E = 3
-H = 4
-L = 5
-W = 6
-Z = 7
-
 class CPU:
 
     # Registers
-    B   = 0x00
-    C   = 0x01
-    D   = 0x02
-    E   = 0x03
-    H   = 0x04
-    L   = 0x05
-    W   = 0x06
-    Z   = 0x07
+    B   = 0
+    C   = 1
+    D   = 2
+    E   = 3
+    H   = 4
+    L   = 5
+    M   = 6
+    A   = 7
 
     # Flags
     CY  = 0x01
@@ -62,18 +52,14 @@ class CPU:
         # memory
         self.mem = [0x00] * 64 * (1 << 10)
 
-        self.optable = [self.NOP] * 256
-        self.__init_optable()
+        self.dispatch = [self.NOP] * 256
+        self.__init_dispatch()
 
         # conditions
         self.conds = [False] * 8
 
         self.cycles = 0
 
-        self.__RS = 0
-        self.__RD = 0
-        self.__CC = 0
-        self.__NN = 0
 
     def load(self, addr, arr):
         for idx, data in enumerate(arr):
@@ -82,21 +68,17 @@ class CPU:
     def exec(self):
         while not self.halt:
             self.ir = self.fetch()
-            self.__decode()
             #self.__conds.update()
             self.__exec()
     
     def __exec(self):
-        self.optable[self.ir]()
+        self.dispatch[self.ir]()
     
     def reset(self):
         self.alu.reset()
         self.pc = 0x0000
         self.sp = 0x8000
         self.halt = False
-    
-    def get_B(self):
-        return self.regs[CPU.B]
     
     # register pairs
     def get_BC(self):
@@ -111,10 +93,16 @@ class CPU:
         """ Get register pair HL """
         return 256 * self.regs[CPU.H] + self.regs[CPU.L]
     
+    def get_rp(self, rp):
+        return 256 * self.regs[rp] + self.regs[rp + 1]
+    
+    def set_rp(self, rp, data_16):
+        self.regs[rp] = data_16 // 256
+        self.regs[rp + 1] = data_16 % 256
+    
     def set_BC(self, data_16):
         """ Set register pair BC """
-        self.regs[CPU.B] = data_16 // 256
-        self.regs[CPU.C] = data_16 % 256
+        self.set_rp(CPU.B, data_16)
     
     def set_DE(self, data_16):
         """ Set register pair DE """
@@ -192,524 +180,218 @@ class CPU:
         self.conds[0x00] = not self.alu.Z()
         self.conds[0x01] = self.alu.Z()
 
-
-    def __init_optable(self):
-        self.optable[0x00] = self.NOP
-        self.optable[0x01] = self.LXI_BC
-        self.optable[0x02] = self.STAX_BC
-        self.optable[0x03] = self.INX_BC
-        self.optable[0x04] = self.INR_B
-        self.optable[0x05] = self.DCR_B
-        self.optable[0x06] = self.MVI_B
-        self.optable[0x07] = self.RLC
+    def __init_dispatch(self):
+        self.dispatch[0x00] = self.NOP
+        self.dispatch[0x01] = self.LXI_BC
+        self.dispatch[0x02] = self.STAX_BC
+        self.dispatch[0x03] = self.INX_BC
+        self.dispatch[0x04] = self.INR
+        self.dispatch[0x05] = self.DCR
+        self.dispatch[0x06] = self.MVI
+        self.dispatch[0x07] = self.RLC
         
-        self.optable[0x09] = self.DAD_BC
-        self.optable[0x0a] = self.LDAX_BC
-        self.optable[0x0b] = self.DCX_BC
-        self.optable[0x0c] = self.INR_C
-        self.optable[0x0d] = self.DCR_C
-        self.optable[0x0e] = self.MVI_C
-        self.optable[0x0f] = self.RRC
+        self.dispatch[0x09] = self.DAD_BC
+        self.dispatch[0x0a] = self.LDAX_BC
+        self.dispatch[0x0b] = self.DCX_BC
+        self.dispatch[0x0c] = self.INR
+        self.dispatch[0x0d] = self.DCR
+        self.dispatch[0x0e] = self.MVI
+        self.dispatch[0x0f] = self.RRC
 
-        self.optable[0x11] = self.LXI_DE
-        self.optable[0x12] = self.STAX_DE
-        self.optable[0x13] = self.INX_DE
-        self.optable[0x14] = self.INR_D
-        self.optable[0x15] = self.DCR_D
-        self.optable[0x16] = self.MVI_D
-        self.optable[0x17] = self.RAL
+        self.dispatch[0x11] = self.LXI_DE
+        self.dispatch[0x12] = self.STAX_DE
+        self.dispatch[0x13] = self.INX_DE
+        self.dispatch[0x14] = self.INR
+        self.dispatch[0x15] = self.DCR
+        self.dispatch[0x16] = self.MVI
+        self.dispatch[0x17] = self.RAL
         
-        self.optable[0x19] = self.DAD_DE
-        self.optable[0x1a] = self.LDAX_DE
-        self.optable[0x1b] = self.DCX_DE
-        self.optable[0x1c] = self.INR_E
-        self.optable[0x1d] = self.DCR_E
-        self.optable[0x1e] = self.MVI_E
-        self.optable[0x1f] = self.RAR
+        self.dispatch[0x19] = self.DAD_DE
+        self.dispatch[0x1a] = self.LDAX_DE
+        self.dispatch[0x1b] = self.DCX_DE
+        self.dispatch[0x1c] = self.INR
+        self.dispatch[0x1d] = self.DCR
+        self.dispatch[0x1e] = self.MVI
+        self.dispatch[0x1f] = self.RAR
 
-        self.optable[0x21] = self.LXI_HL
-        self.optable[0x22] = self.SHLD
-        self.optable[0x23] = self.INX_HL
-        self.optable[0x24] = self.INR_H
-        self.optable[0x25] = self.DCR_H
-        self.optable[0x26] = self.MVI_H
-        self.optable[0x27] = self.DAA
+        self.dispatch[0x21] = self.LXI_HL
+        self.dispatch[0x22] = self.SHLD
+        self.dispatch[0x23] = self.INX_HL
+        self.dispatch[0x24] = self.INR
+        self.dispatch[0x25] = self.DCR
+        self.dispatch[0x26] = self.MVI
+        self.dispatch[0x27] = self.DAA
 
-        self.optable[0x29] = self.DAD_HL
-        self.optable[0x2a] = self.LHLD
-        self.optable[0x2b] = self.DCX_HL
-        self.optable[0x2c] = self.INR_L
-        self.optable[0x2d] = self.DCR_L
-        self.optable[0x2e] = self.MVI_L
-        self.optable[0x2f] = self.CMA
+        self.dispatch[0x29] = self.DAD_HL
+        self.dispatch[0x2a] = self.LHLD
+        self.dispatch[0x2b] = self.DCX_HL
+        self.dispatch[0x2c] = self.INR
+        self.dispatch[0x2d] = self.DCR
+        self.dispatch[0x2e] = self.MVI
+        self.dispatch[0x2f] = self.CMA
 
-        self.optable[0x31] = self.LXI_SP
-        self.optable[0x32] = self.STA
-        self.optable[0x33] = self.INX_SP
-        self.optable[0x34] = self.INR_M
-        self.optable[0x35] = self.DCR_M
-        self.optable[0x36] = self.MVI_M
-        self.optable[0x37] = self.STC
+        self.dispatch[0x31] = self.LXI_SP
+        self.dispatch[0x32] = self.STA
+        self.dispatch[0x33] = self.INX_SP
+        self.dispatch[0x34] = self.INR
+        self.dispatch[0x35] = self.DCR
+        self.dispatch[0x36] = self.MVI
+        self.dispatch[0x37] = self.STC
 
-        self.optable[0x39] = self.DAD_SP
-        self.optable[0x3a] = self.LDA
-        self.optable[0x3b] = self.DCX_SP
-        self.optable[0x3c] = self.INR_A
-        self.optable[0x3d] = self.DCR_A
-        self.optable[0x3e] = self.MVI_A
-        self.optable[0x3f] = self.CMC
-        self.optable[0x40] = self.MOV_B_B
-        self.optable[0x41] = self.MOV_B_C
-        self.optable[0x42] = self.MOV_B_D
-        self.optable[0x43] = self.MOV_B_E
-        self.optable[0x44] = self.MOV_B_H
-        self.optable[0x45] = self.MOV_B_L
-        self.optable[0x46] = self.MOV_B_M
-        self.optable[0x47] = self.MOV_B_A
-        self.optable[0x48] = self.MOV_C_B
-        self.optable[0x49] = self.MOV_C_C
-        self.optable[0x4a] = self.MOV_C_D
+        self.dispatch[0x39] = self.DAD_SP
+        self.dispatch[0x3a] = self.LDA
+        self.dispatch[0x3b] = self.DCX_SP
+        self.dispatch[0x3c] = self.INR
+        self.dispatch[0x3d] = self.DCR
+        self.dispatch[0x3e] = self.MVI
+        self.dispatch[0x3f] = self.CMC
+        self.dispatch[0x40] = self.MOV
+        self.dispatch[0x41] = self.MOV
+        self.dispatch[0x42] = self.MOV
+        self.dispatch[0x43] = self.MOV
+        self.dispatch[0x44] = self.MOV
+        self.dispatch[0x45] = self.MOV
+        self.dispatch[0x46] = self.MOV
+        self.dispatch[0x47] = self.MOV
+        self.dispatch[0x48] = self.MOV
+        self.dispatch[0x49] = self.MOV
+        self.dispatch[0x4a] = self.MOV
 
-        self.optable[0x50] = self.MOV_D_B
-        self.optable[0x51] = self.MOV_D_C
-        self.optable[0x52] = self.MOV_D_D
-        self.optable[0x53] = self.MOV_D_E
-        self.optable[0x54] = self.MOV_D_H
-        self.optable[0x55] = self.MOV_D_L
-        self.optable[0x56] = self.MOV_D_M
-        self.optable[0x57] = self.MOV_D_A
+        self.dispatch[0x50] = self.MOV
+        self.dispatch[0x51] = self.MOV
+        self.dispatch[0x52] = self.MOV
+        self.dispatch[0x53] = self.MOV
+        self.dispatch[0x54] = self.MOV
+        self.dispatch[0x55] = self.MOV
+        self.dispatch[0x56] = self.MOV
+        self.dispatch[0x57] = self.MOV
 
-        self.optable[0x58] = self.MOV_E_B
-        self.optable[0x59] = self.MOV_E_C
-        self.optable[0x5a] = self.MOV_E_D
-        self.optable[0x5b] = self.MOV_E_E
-        self.optable[0x5c] = self.MOV_E_H
-        self.optable[0x5d] = self.MOV_E_L
-        self.optable[0x5e] = self.MOV_E_M
-        self.optable[0x5f] = self.MOV_E_A
+        self.dispatch[0x58] = self.MOV
+        self.dispatch[0x59] = self.MOV
+        self.dispatch[0x5a] = self.MOV
+        self.dispatch[0x5b] = self.MOV
+        self.dispatch[0x5c] = self.MOV
+        self.dispatch[0x5d] = self.MOV
+        self.dispatch[0x5e] = self.MOV
+        self.dispatch[0x5f] = self.MOV
 
-        self.optable[0x60] = self.MOV_H_B
-        self.optable[0x61] = self.MOV_H_C
-        self.optable[0x62] = self.MOV_H_D
-        self.optable[0x63] = self.MOV_H_E
-        self.optable[0x64] = self.MOV_H_H
-        self.optable[0x65] = self.MOV_H_L
-        self.optable[0x66] = self.MOV_H_M
-        self.optable[0x67] = self.MOV_H_A
+        self.dispatch[0x60] = self.MOV
+        self.dispatch[0x61] = self.MOV
+        self.dispatch[0x62] = self.MOV
+        self.dispatch[0x63] = self.MOV
+        self.dispatch[0x64] = self.MOV
+        self.dispatch[0x65] = self.MOV
+        self.dispatch[0x66] = self.MOV
+        self.dispatch[0x67] = self.MOV
 
-        self.optable[0x68] = self.MOV_L_B
-        self.optable[0x69] = self.MOV_L_C
-        self.optable[0x6a] = self.MOV_L_D
-        self.optable[0x6b] = self.MOV_L_E
-        self.optable[0x6c] = self.MOV_L_H
-        self.optable[0x6d] = self.MOV_L_L
-        self.optable[0x6e] = self.MOV_L_M
-        self.optable[0x6f] = self.MOV_L_A
+        self.dispatch[0x68] = self.MOV
+        self.dispatch[0x69] = self.MOV
+        self.dispatch[0x6a] = self.MOV
+        self.dispatch[0x6b] = self.MOV
+        self.dispatch[0x6c] = self.MOV
+        self.dispatch[0x6d] = self.MOV
+        self.dispatch[0x6e] = self.MOV
+        self.dispatch[0x6f] = self.MOV
 
-        self.optable[0x70] = self.MOV_M_B
-        self.optable[0x71] = self.MOV_M_C
-        self.optable[0x72] = self.MOV_M_D
-        self.optable[0x73] = self.MOV_M_E
-        self.optable[0x74] = self.MOV_M_H
-        self.optable[0x75] = self.MOV_M_L
-        self.optable[0x76] = self.HLT
-        self.optable[0x77] = self.MOV_M_A
+        self.dispatch[0x70] = self.MOV
+        self.dispatch[0x71] = self.MOV
+        self.dispatch[0x72] = self.MOV
+        self.dispatch[0x73] = self.MOV
+        self.dispatch[0x74] = self.MOV
+        self.dispatch[0x75] = self.MOV
+        self.dispatch[0x76] = self.HLT
+        self.dispatch[0x77] = self.MOV
 
-        self.optable[0x78] = self.MOV_A_B
-        self.optable[0x79] = self.MOV_A_C
-        self.optable[0x7a] = self.MOV_A_D
-        self.optable[0x7b] = self.MOV_A_E
-        self.optable[0x7c] = self.MOV_A_H
-        self.optable[0x7d] = self.MOV_A_L
-        self.optable[0x7e] = self.MOV_A_M
-        self.optable[0x7f] = self.MOV_A_A
+        self.dispatch[0x78] = self.MOV
+        self.dispatch[0x79] = self.MOV
+        self.dispatch[0x7a] = self.MOV
+        self.dispatch[0x7b] = self.MOV
+        self.dispatch[0x7c] = self.MOV
+        self.dispatch[0x7d] = self.MOV
+        self.dispatch[0x7e] = self.MOV
+        self.dispatch[0x7f] = self.MOV
 
-        self.optable[0x80] = self.ADD_B
-        self.optable[0x81] = self.ADD_C
-        self.optable[0x82] = self.ADD_D
-        self.optable[0x83] = self.ADD_E
-        self.optable[0x84] = self.ADD_H
-        self.optable[0x85] = self.ADD_L
-        self.optable[0x86] = self.ADD_M
-        self.optable[0x87] = self.ADD_A
+        self.dispatch[0x80] = self.ADD
+        self.dispatch[0x81] = self.ADD
+        self.dispatch[0x82] = self.ADD
+        self.dispatch[0x83] = self.ADD
+        self.dispatch[0x84] = self.ADD
+        self.dispatch[0x85] = self.ADD
+        self.dispatch[0x86] = self.ADD
+        self.dispatch[0x87] = self.ADD
 
-        self.optable[0x88] = self.ADC_B
-        self.optable[0x89] = self.ADC_C
-        self.optable[0x8a] = self.ADC_D
-        self.optable[0x8b] = self.ADC_E
-        self.optable[0x8c] = self.ADC_H
-        self.optable[0x8d] = self.ADC_L
-        self.optable[0x8e] = self.ADC_M
-        self.optable[0x8f] = self.ADC_A
+        self.dispatch[0x88] = self.ADC
+        self.dispatch[0x89] = self.ADC
+        self.dispatch[0x8a] = self.ADC
+        self.dispatch[0x8b] = self.ADC
+        self.dispatch[0x8c] = self.ADC
+        self.dispatch[0x8d] = self.ADC
+        self.dispatch[0x8e] = self.ADC
+        self.dispatch[0x8f] = self.ADC
 
-        self.optable[0x90] = self.SUB_B
-        self.optable[0x91] = self.SUB_C
-        self.optable[0x92] = self.SUB_D
-        self.optable[0x93] = self.SUB_E
-        self.optable[0x94] = self.SUB_H
-        self.optable[0x95] = self.SUB_L
-        self.optable[0x96] = self.SUB_M
-        self.optable[0x97] = self.SUB_A
+        self.dispatch[0x90] = self.SUB
+        self.dispatch[0x91] = self.SUB
+        self.dispatch[0x92] = self.SUB
+        self.dispatch[0x93] = self.SUB
+        self.dispatch[0x94] = self.SUB
+        self.dispatch[0x95] = self.SUB
+        self.dispatch[0x96] = self.SUB
+        self.dispatch[0x97] = self.SUB
 
-        self.optable[0x98] = self.SBB_B
-        self.optable[0x99] = self.SBB_C
-        self.optable[0x9a] = self.SBB_D
-        self.optable[0x9b] = self.SBB_E
-        self.optable[0x9c] = self.SBB_H
-        self.optable[0x9d] = self.SBB_L
-        self.optable[0x9e] = self.SBB_M
-        self.optable[0x9f] = self.SBB_A
+        self.dispatch[0x98] = self.SBB
+        self.dispatch[0x99] = self.SBB
+        self.dispatch[0x9a] = self.SBB
+        self.dispatch[0x9b] = self.SBB
+        self.dispatch[0x9c] = self.SBB
+        self.dispatch[0x9d] = self.SBB
+        self.dispatch[0x9e] = self.SBB
+        self.dispatch[0x9f] = self.SBB
 
-        self.optable[0xa0] = self.ANA_B
-        self.optable[0xa1] = self.ANA_C
-
-    def __decode(self):
-        self.__decode_RS()
-        self.__decode_RD()
-        self.__decode_CC()
-        self.__decode_NN()
-        self.__decode_AL()
+        self.dispatch[0xa0] = self.ANA
+        self.dispatch[0xa1] = self.ANA
     
-    def __decode_RS(self):
+    def __rs(self):
         """ decode source register index """
-        self.__RS = self.ir & 0x07
+        return self.ir & 0x07
 
-    def __decode_RD(self):
+    def __rd(self):
         """ decode destination register index """
-        self.__RD = (self.ir & 0x38) >> 3
+        return (self.ir & 0x38) >> 3
     
-    def __decode_CC(self):
+    def __get_rs(self):
+        if self.__rs() == CPU.M:
+            return self.read_M()
+        else:
+            return self.regs[self.__rs()]
+    
+    def __get_rd(self):
+        if self.__rd() == CPU.M:
+            return self.read_M()
+        else:
+            return self.regs[self.__rd()]
+    
+    def __set_rd(self, data):
+        if self.__rd() == CPU.M:
+            self.store_M(data)
+        else:
+            self.regs[self.__rd()] = data
+
+    def __cc(self):
         """ decode condition code """
-        self.__CC = (self.ir & 0x38) >> 3
+        return (self.ir & 0x38) >> 3
     
-    def __decode_NN(self):
+    def __nn(self):
         """ decode n """
-        self.__NN = (self.ir & 0x38) >> 3
+        return (self.ir & 0x38) >> 3
     
-    def __decode_AL(self):
-        self.__AL = (self.ir & 0x38) >> 3
-
-    def __MOV_r1_r2(self):
-        """ Move register """
-        self.regs[self.__RD] = self.regs[self.__RS]
+    def MOV(self):
+        self.__set_rd(self.__get_rs())
     
-    def MOV_B_B(self):
-        """ Move register B to B """
-        self.__MOV_r1_r2()
-
-    def MOV_B_C(self):
-        """ Move register B to C """
-        self.__MOV_r1_r2()
-
-    def MOV_B_D(self):
-        """ Move register B to D """
-        self.__MOV_r1_r2()
-
-    def MOV_B_E(self):
-        """ Move register B to E """
-        self.__MOV_r1_r2()
-
-    def MOV_B_H(self):
-        """ Move register B to H """
-        self.__MOV_r1_r2()
-
-    def MOV_B_L(self):
-        """ Move register B to L """
-        self.__MOV_r1_r2()
-
-    def MOV_B_M(self):
-        """ Move memory (at HL) to B """
-        pass
-
-    def MOV_B_A(self):
-        """ Move register A to B """
-        self.__MOV_r1_r2()
-
-    def MOV_C_B(self):
-        """ Move register B to C """
-        self.__MOV_r1_r2()
-
-    def MOV_C_C(self):
-        """ Move register C to C """
-        self.__MOV_r1_r2()
-
-    def MOV_C_D(self):
-        """ Move register D to C """
-        self.__MOV_r1_r2()
-
-    def MOV_C_E(self):
-        """ Move register E to C """
-        self.__MOV_r1_r2()
-
-    def MOV_C_H(self):
-        """ Move register H to C """
-        self.__MOV_r1_r2()
-
-    def MOV_C_L(self):
-        """ Move register L to C """
-        self.__MOV_r1_r2()
-
-    def MOV_C_M(self):
-        """ Move memory (at HL) to C """
-        pass
-
-    def MOV_C_A(self):
-        """ Move register A to C """
-        self.__MOV_r1_r2()
-
-    def MOV_D_B(self):
-        """ Move register B to D """
-        self.__MOV_r1_r2()
-
-    def MOV_D_C(self):
-        """ Move register C to D """
-        self.__MOV_r1_r2()
-
-    def MOV_D_D(self):
-        """ Move register D to D """
-        self.__MOV_r1_r2()
-
-    def MOV_D_E(self):
-        """ Move register E to D """
-        self.__MOV_r1_r2()
-
-    def MOV_D_H(self):
-        """ Move register H to D """
-        self.__MOV_r1_r2()
-
-    def MOV_D_L(self):
-        """ Move register L to D """
-        self.__MOV_r1_r2()
-
-    def MOV_D_M(self):
-        """ Move memory (at HL) to D """
-        pass
-
-    def MOV_D_A(self):
-        """ Move register A to D """
-        pass
-
-    def MOV_E_B(self):
-        """ Move register B to E """
-        pass
-
-    def MOV_E_C(self):
-        """ Move register C to E """
-        pass
-
-    def MOV_E_D(self):
-        """ Move register D to E """
-        pass
-
-    def MOV_E_E(self):
-        """ Move register E to E """
-        pass
-
-    def MOV_E_H(self):
-        """ Move register H to E """
-        pass
-
-    def MOV_E_L(self):
-        """ Move register L to E """
-        pass
-
-    def MOV_E_M(self):
-        """ Move memory (at HL) to E """
-        pass
-
-    def MOV_E_A(self):
-        """ Move register A to E """
-        pass
-
-    def MOV_H_B(self):
-        """ Move register B to H """
-        pass
-
-    def MOV_H_C(self):
-        """ Move register C to H """
-        pass
-
-    def MOV_H_D(self):
-        """ Move register D to H """
-        pass
-
-    def MOV_H_E(self):
-        """ Move register E to H """
-        pass
-
-    def MOV_H_H(self):
-        """ Move register H to H """
-        pass
-
-    def MOV_H_L(self):
-        """ Move register L to H """
-        pass
-
-    def MOV_H_A(self):
-        """ Move register A to H """
-        pass
-
-    def MOV_L_B(self):
-        """ Move register B to L """
-        pass
-
-    def MOV_L_C(self):
-        """ Move register C to L """
-        self.regs[CPU.L] = self.regs[CPU.C]
-
-    def MOV_L_D(self):
-        """ Move register D to L """
-        pass
-
-    def MOV_L_E(self):
-        """ Move register E to L """
-        pass
-
-    def MOV_L_H(self):
-        """ Move register H to L """
-        pass
-
-    def MOV_L_L(self):
-        """ Move register L to L """
-        pass
-
-    def MOV_L_A(self):
-        """ Move register A to L """
-        pass
-    
-    def MOV_A_r(self):
-        """ Move register r to A """
-        self.alu.ACC = self.regs[self.__RS]
-
-    def MOV_A_B(self):
-        """ Move register B to A """
-        self.alu.ACC = self.regs[CPU.B]
-
-    def MOV_A_C(self):
-        """ Move register C to A """
-        self.MOV_A_r()
-
-    def MOV_A_D(self):
-        """ Move register D to A """
-        self.MOV_A_r()
-
-    def MOV_A_E(self):
-        """ Move register E to A """
-        pass
-
-    def MOV_A_H(self):
-        """ Move register H to A """
-        pass
-
-    def MOV_A_L(self):
-        """ Move register L to A """
-        pass
-
-    def MOV_A_A(self):
-        """ Move register A to A """
-        pass
-    
-    def __MOV_r_M(self):
-        """ Move memory """
-        self.regs[self.__RD] = self.read_M()
-    
-    def MOV_B_M(self):
-        """ Move memory B """
-        pass
-    
-    def MOV_C_M(self):
-        """ Move memory C """
-        pass
-    
-    def MOV_D_M(self):
-        """ Move memory D """
-        pass
-    
-    def MOV_E_M(self):
-        """ Move memory E """
-        pass
-    
-    def MOV_H_M(self):
-        """ Move memory H """
-        pass
-    
-    def MOV_L_M(self):
-        """ Move memory L """
-        pass
-    
-    def MOV_A_M(self):
-        """ Move memory A """
-        pass
-    
-    def __MOV_M_r(self):
-        """ Move register to memory """
-        self.store_M(self.regs[self.__RS])
-    
-    def MOV_M_B(self):
-        """ Move register B to memory """
-        self.__MOV_M_r()
-    
-    def MOV_M_C(self):
-        """ Move register C to memory """
-        pass
-    
-    def MOV_M_D(self):
-        """ Move register D to memory """
-        pass
-    
-    def MOV_M_E(self):
-        """ Move register E to memory """
-        pass
-    
-    def MOV_M_H(self):
-        """ Move register H to memory """
-        pass
-    
-    def MOV_M_L(self):
-        """ Move register L to memory """
-        pass
-    
-    def MOV_M_A(self):
-        """ Move register A to memory """
-        pass
-    
-    def __MVI_r(self):
+    def MVI(self):
         """ Move immediate register """
-        self.regs[self.__RD] = self.fetch()
-
-    def MVI_B(self):
-        """ Move immediate register B """
-        self.__MVI_r()
+        self.__set_rd(self.fetch())
     
-    def MVI_C(self):
-        """ Move immediate register C """
-        self.__MVI_r()
-    
-    def MVI_D(self):
-        """ Move immediate register D """
-        self.__MVI_r()
-    
-    def MVI_E(self):
-        """ Move immediate register E """
-        self.__MVI_r()
-    
-    def MVI_H(self):
-        """ Move immediate register H """
-        self.__MVI_r()
-    
-    def MVI_L(self):
-        """ Move immediate register L """
-        self.__MVI_r()
-
-    def MVI_A(self):
-        """ Move immediate register A """
-        self.__MVI_r()
-
-    def MVI_M(self):
-        """ Move immediate memory """
-        self.store_M(self.fetch())
-    
-    def LXI_rp_data_16(self):
+    def LXI(self):
         """ Load register pair immediate """
         pass
 
@@ -747,7 +429,7 @@ class CPU:
         """ Store H and L direct """
         self.store_16(self.fetch_16(), self.get_HL())
     
-    def __LDAX_rp(self):
+    def LDAX(self):
         """ Load accumulator indirect """
         pass
     
@@ -759,7 +441,7 @@ class CPU:
         """ Load accumulator indirect DE """
         self.alu.ACC = self.read(self.get_DE())
     
-    def __STAX_rp(self):
+    def STAX(self):
         """ Store accumulator indirect """
         pass
     
@@ -772,243 +454,68 @@ class CPU:
         self.store(self.get_DE(), self.regs[A])
     
     def XCHG(self):
-        pass
+        self.regs[H], self.regs[D] = self.regs[D], self.regs[H]
+        self.regs[L], self.regs[E] = self.regs[E], self.regs[L]
     
-    def ALU_r(self):
-        """ ALU operation on register """
-        self.alu.table[self.__AL](self.regs[self.__RS])
+    def ALU(self, op, tmp):
+        acc, flags = op(self.regs[CPU.A], tmp, self.flags)
+        self.regs[CPU.A] = acc
+        self.flags = flags
 
-    def __ADD_r(self):
+    def __ADD(self, tmp):
+        acc, flags = ADD(self.regs[CPU.A], tmp, 0)
+        self.regs[CPU.A] = acc
+        self.flags = flags
+
+    def ADD(self):
         """ Add register """
-        self.flags, self.acc = alu.exec(alu.ADD, self.acc, self.regs[self.__RS])
-    
-    def ADD_B(self):
-        """ Add register B """
-        self.acc, self.flags = alu.exec(alu.ADD, self.acc, self.regs[CPU.B])
-    
-    def ADD_C(self):
-        """ Add register C """
-        self.__ADD_r()
-
-    def ADD_D(self):
-        """ Add register D """
-        self.__ADD_r()
-    
-    def ADD_E(self):
-        """ Add register E """
-        pass
-    
-    def ADD_H(self):
-        """ Add register H """
-        pass
-    
-    def ADD_L(self):
-        """ Add register L """
-        pass
-    
-    def ADD_M(self):
-        """ Add memory """
-        self.alu.TMP = self.read_M()
-        self.alu.ADD(self.read_M())
-    
-    def ADD_A(self):
-        """ Add register A """
-        self.alu.ADD(self.regs[CPU.A])
+        self.ALU(ADD, self.__get_rs())
     
     def ADI(self):
         """ Add immediate """
-        self.alu.TMP = self.fetch()
-        self.alu.ADD()
+        self.__ADD(self.fetch())
     
     def ADC(self, tmp):
-        pass
+        self.flags, self.acc = alu(ADC, self.acc, tmp, 0)
     
-    def __ADC_r(self):
-        """ Add register with carry """
-        self.alu.ADC(self.regs[self.__RS])
-    
-    def ADC_B(self):
-        """ Add register B with carry """
-        self.alu.ADC(self.regs[CPU.B])
-    
-    def ADC_C(self):
-        """ Add register C with carry """
-        self.__ADC_r()
-    
-    def ADC_D(self):
-        """ Add register D with carry """
-        self.__ADC_r()
-    
-    def ADC_E(self):
-        """ Add register E with carry """
-        self.__ADC_r()
-    
-    def ADC_H(self):
-        """ Add register H with carry """
-        self.__ADC_r()
-    
-    def ADC_L(self):
-        """ Add register L with carry """
-        pass
-    
-    def ADC_A(self):
-        """ Add register A with carry """
-        self.alu.ADC(self.alu.ACC)
-    
-    def ADC_M(self):
-        """ Add memory with carry """
-        self.alu.ADC(self.read_M())
-    
-    def ACI_data(self):
+    def ACI(self):
         """ Add immediate with carry """
         self.alu.ADC(self.fetch())
 
-    def __SUB_r(self):
+    def __SUB(self, tmp):
+        self.flags, self.acc = alu(
+            SUB, self.acc, tmp
+        )
+
+    def SUB(self):
         """ Subtract register """
-        self.__SUB(self.regs[self.__RS])
+        self.__SUB(self.regs[self.__rs])
     
-    def SUB_B(self):
-        """ Subtract register B """
-        self.__SUB_r()
-    
-    def SUB_C(self):
-        """ Subtract register C """
-        self.__SUB_r()
-    
-    def SUB_D(self):
-        pass
-    
-    def SUB_E(self):
-        pass
-    
-    def SUB_H(self):
-        pass
-    
-    def SUB_L(self):
-        pass
-    
-    def SUB_M(self):
-        """ Subtract memory """
-        self.alu.SUB(self.read_M())
-    
-    def SUB_A(self):
-        self.alu.SUB(self.alu.ACC)
-    
-    def SUI_data(self):
+    def SUI(self):
         """ Subtract immediate """
-        self.alu.SUB(self.fetch())
+        self.__SUB(self.fetch())
     
-    def sbb(self, tmp):
-        self.flags, self.acc = alu(SBB, self.acc, tmp, self.cy())
+    def __SBB(self, tmp):
+        self.flags, self.acc = alu(
+            SBB, self.acc, tmp, self.cy()
+        )
 
-    def __SBB_r(self):
+    def SBB(self):
         """ Subtract register with borrow """
-        self.sbb(self.regs[self.__RS])
-    
-    def SBB_B(self):
-        self.alu.SBB(self.regs[CPU.B])
-    
-    def SBB_C(self):
-        pass
-    
-    def SBB_D(self):
-        pass
+        self.SBB(self.regs[self.__rs])
 
-    def SBB_E(self):
-        pass
-    
-    def SBB_H(self):
-        pass
-    
-    def SBB_L(self):
-        pass
-    
-    def SBB_M(self):
-        """ Subtract memory with borrow """
-        self.alu.SBB(self.read_M())
-    
-    def SBB_A(self):
-        self.alu.SBB(self.alu.ACC)
-
-    def SBI_data(self):
+    def SBI(self):
         """ Subtract immediate with borrow """
         self.alu.SBB(self.fetch())
-        
-    def __INR_r(self):
-        """ Increment register """
-        self.regs[self.__RD] = self.alu.INR(self.regs[self.__RD])
     
-    def INR_B(self):
-        """ Increment register B """
-        self.regs[CPU.B] = self.alu.INR(self.regs[CPU.B])
+    def INR(self, tmp):
+        flags, tmp = alu(ADD, 0, tmp, 1)
+        self.flags = flags
+        return tmp
     
-    def INR_C(self):
-        """ Increment register C """
-        self.__INR_r()
-    
-    def INR_D(self):
-        """ Increment register D """
-        self.regs[CPU.D] = \
-        self.alu.INR(self.regs[CPU.D])
-    
-    def INR_E(self):
-        """ Increment register E """
-        self.regs[CPU.E] = \
-            self.alu.INR(self.regs[CPU.E])
-    
-    def INR_H(self):
-        """ Increment register H """
-        self.__INR_r()
-    
-    def INR_L(self):
-        self.__INR_r()
-    
-    def INR_M(self):
-        """ Increment memory """
-        self.store_M(
-            self.alu.INR(self.read_M())
-        )
-    
-    def INR_A(self):
-        """ Increment register A """
-        self.alu.ACC = self.alu.INR(self.alu.ACC)
-    
-    def __DCR_r(self):
+    def DCR(self):
         """ Decrement register """
-        self.alu.TMP = self.regs[self.__RD]
-        self.regs[self.__RD] = self.alu.DCR()
-    
-    def DCR_B(self):
-        """ Decrement register B """
-        pass
-    
-    def DCR_C(self):
-        """ Decrement register C """
-        pass
-    
-    def DCR_D(self):
-        """ Decrement register D """
-        pass
-    
-    def DCR_E(self):
-        """ Decrement register E """
-        self.__DCR_r()
-    
-    def DCR_H(self):
-        """ Decrement register H """
-        self.__DCR_r()
-    
-    def DCR_L(self):
-        """ Decrement register L """
-        self.__DCR_r()
-
-    def DCR_M(self):
-        """ Decrement memory """
-        pass
-    
-    def DCR_A(self):
-        """ Decrement register A """
-        self.__DCR_r()
+        self.__set_rd((self.__get_rd() + 255) % 256)
     
     def __INX_rp(self, tmp_16):
         """ Increment register pair """
@@ -1058,7 +565,7 @@ class CPU:
         _, _, res_16 = alu.DCX_16(self.sp)
         self.sp = res_16
     
-    def __DAD_rp(self, tmp_16):
+    def DAD(self, tmp_16):
         flags, acc_16 = DAD(self.get_HL(), tmp_16)
         self.set_HL(acc_16)
         self.alu.flags = (flags & ALU.CY) | (self.flags & ~ALU.CY)
@@ -1082,138 +589,36 @@ class CPU:
     def DAA(self):
         """ Decimal adjust accumulator """
         pass
-
-    def __ANA_r(self):
-        """ And register """
-        self.alu.ANA(self.regs[self.__RS])
     
-    def ANA_B(self):
-        """ And register B """
-        self.__ANA_r()
+    def ANA(self):
+        self.flags, self.acc = alu(ANA, self.acc, tmp)
     
-    def ANA_C(self):
-        """ And register C """
-        self.__ANA_r()
-    
-    def ANA_D(self):
-        """ And register D """
-        pass
-    
-    def ANA_E(self):
-        """ And register E """
-        pass
-    
-    def ANA_H(self):
-        """ And register H """
-        pass
-    
-    def ANA_L(self):
-        """ And register L """
-        pass
-    
-    def ANA_A(self):
-        """ And register A """
-        pass
-
-    def ANA_M(self):
-        """ And memory """
-        self.alu.ANA(self.read_M())
-    
-    def ANI_data(self):
+    def ANI(self):
         """ And immediate """
         self.alu.ANA(self.fetch())
     
-    def __XRA_r(self):
+    def XRA(self):
         """ Exclusive OR register """
-        self.alu.XRA(self.regs[self.__RS])
-    
-    def XRA_B(self):
-        """ Exclusive or register B """
-        self.alu.XRA(self.regs[B])
-    
-    def XRA_C(self):
-        """ Exclusive or register C """
-        self.alu.XRA(self.regs[C])
-    
-    def XRA_D(self):
-        """ Exclusive or register D """
-        self.alu.XRA(self.regs[D])
+        self.alu.XRA(self.regs[self.__rs])
 
-    def XRA_E(self):
-        """ Exclusive or register E """
-        pass
-    
-    def XRA_H(self):
-        """ Exclusive or register H """
-        pass
-    
-    def XRA_L(self):
-        """ Exclusive or register L """
-        pass
-    
-    def XRA_M(self):
-        """ Exclusive OR memory """
-        self.__alu_xra(self.read_M())
-    
-    def XRA_A(self):
-        """ Exclusive or register A """
-        self.alu.XRA(self.alu.ACC)
-
-    def XRI_data(self):
+    def XRI(self):
         """ Exclusive OR immediate """
         self.__alu_xra(self.fetch())
     
-    def __ORA_r(self):
+    def ORA(self):
         """ OR register """
-        self.alu.ORA(self.regs[self.__RS])
+        self.alu.ORA(self.regs[self.__rs])
     
-    def ORA_B(self):
-        """ Or register B """
-        self.alu.ORA(self.regs[CPU.B])
-    
-    def ORA_M(self):
-        """ OR memory """
-        self.alu.ORA(self.read_M())
-    
-    def ORI_data(self):
+    def ORI(self):
         """ OR immediate """
         self.__alu_or(self.fetch())
     
-    def __CMP_r(self):
+    def __CMP(self, tmp):
+        self.flags, _ = alu(SUB, self.acc, tmp)
+    
+    def CMP(self, r):
         """ Compare register """
-        self.alu.CMP(self.regs[self.__RS])
-    
-    def CMP_B(self):
-        """ Compare register B """
-        self.alu.CMP(self.regs[CPU.B])
-    
-    def CMP_C(self):
-        """ Compare register C """
-        self.alu.CMP(self.regs[CPU.C])
-    
-    def CMP_D(self):
-        """ Compare register D """
-        self.alu.CMP(self.regs[CPU.D])
-    
-    def CMP_E(self):
-        """ Compare register E """
-        self.__CMP_r()
-    
-    def CMP_H(self):
-        """ Compare register H """
-        self.__CMP_r()
-    
-    def CMP_L(self):
-        """ Compare register L """
-        self.__CMP_r()
-    
-    def CMP_A(self):
-        """ Compare register A """
-        self.alu.CMP(self.alu.ACC)
-    
-    def CMP_M(self):
-        """ Compare memory """
-        self.alu.CMP(self.read_M())
+        self.CMP(self.regs[r])
     
     def CPI(self):
         """ Compare immediate """
@@ -1221,6 +626,7 @@ class CPU:
     
     def RLC(self):
         """ Rotate left """
+        self.rega[A]
         self.alu.RLC()
     
     def RRC(self):
@@ -1256,163 +662,35 @@ class CPU:
         self.push_16(self.pc)
         self.pc = self.fetch_16()
     
-    def __Jcondition(self):
+    def JCC(self):
         """ Conditional jump """
         if self.__conds.get(self.__CC):
             self.JMP()
     
-    def JC(self):
-        """ Jump on carry """
-        self.__Jcondition()
-    
-    def JNC(self):
-        """ Jump on no carry """
-        self.__Jcondition()
-    
-    def JZ(self):
-        """ Jump on zero """
-        self.__Jcondition()
-    
-    def JNZ(self):
-        """ Jump on no zero """
-        self.__Jcondition()
-    
-    def JP(self):
-        """ Jump on positive """
-        self.__Jcondition()
-    
-    def JM(self):
-        """ Jump on minus """
-        self.__Jcondition()
-    
-    def JPE(self):
-        """ Jump on parity even """
-        self.__Jcondition()
-    
-    def JPO(self):
-        """ Jump on parity odd """
-        self.__Jcondition()
-    
-    def __Ccondition(self):
+    def CCC(self):
         """ Condition call """
         if self.__conds.get(self.__CC):
             self.CALL()
-    
-    def CC(self):
-        """ Call on carry """
-        self.__Ccondition()
-    
-    def CNC(self):
-        """ Call on no carry """
-        self.__Ccondition()
-    
-    def CZ(self):
-        """ Call on zero """
-        self.__Ccondition()
-    
-    def CNZ(self):
-        """ Call on no zero """
-        self.__Ccondition()
-    
-    def CP(self):
-        """ Call on positive """
-        self.__Ccondition()
-    
-    def CM(self):
-        """ Call on minus """
-        self.__Ccondition()
-    
-    def CPE(self):
-        """ Call on parity even """
-        self.__Ccondition()
-    
-    def CPO(self):
-        """ Call on parity odd """
-        self.__Ccondition()
     
     def RET(self):
         """ Return """
         self.pc = self.pop_16()
     
-    def __Rcondition(self):
+    def RCC(self):
         """ Conditional return """
         if self.__conds.get(self.__CC):
             self.RET()
     
-    def RC(self):
-        """ Return on carry """
-        self.__Rcondition()
-    
-    def RNC(self):
-        """ Return on no carry """
-        self.__Rcondition()
-    
-    def RZ(self):
-        """ Return on zero """
-        self.__Rcondition()
-    
-    def RNZ(self):
-        """ Return on no zero """
-        self.__Rcondition()
-    
-    def RP(self):
-        """ Return on positive """
-        self.__Rcondition()
-    
-    def RM(self):
-        """ Return on minus """
-        self.__Rcondition()
-    
-    def RPE(self):
-        """ Return on parity even """
-        self.__Rcondition()
-    
-    def RPO(self):
-        """ Return on parity odd """
-        self.__Rcondition()
-    
-    def __RST_n(self):
+    def rsT(self):
         """ Restart """
         self.push_16(self.pc)
         self.pc = 8 * self.__NN
-    
-    def RST_0(self):
-        """ Restart 0 """
-        self.__RST_n()
-    
-    def RST_1(self):
-        """ Restart 1 """
-        self.__RST_n()
-    
-    def RST_2(self):
-        """ Restart 2 """
-        self.__RST_n()
-    
-    def RST_3(self):
-        """ Restart 3 """
-        self.__RST_n()
-    
-    def RST_4(self):
-        """ Restart 4 """
-        self.__RST_n()
-    
-    def RST_5(self):
-        """ Restart 5 """
-        self.__RST_n()
-    
-    def RST_6(self):
-        """ Restart 6 """
-        self.__RST_n()
-    
-    def RST_7(self):
-        """ Restart 7 """
-        self.__RST_n()
     
     def PCHL(self):
         """ Jump H and L indirect """
         self.pc = self.get_HL()
     
-    def __PUSH_rp(self):
+    def PUSH(self):
         """ Push """
         self.push_16(
             self.__get_rp()
@@ -1436,7 +714,7 @@ class CPU:
             self.alu.PSW()
         )
 
-    def __POP_rp(self):
+    def POP(self):
         """ Pop """
         pass
     
@@ -1460,17 +738,19 @@ class CPU:
     
     def XTHL(self):
         """ Exchange stack top with H and L """
-        pass
+        data_16 = self.pop_16()
+        self.push_16(self.get_HL())
+        self.set_HL(data_16)
     
     def SPHL(self):
         """ Move HL to SP """
         pass
     
-    def IN_port(self):
+    def IN(self):
         """ Input """
         pass
     
-    def OUT_port(self):
+    def OUT(self):
         """ Output """
         pass
     

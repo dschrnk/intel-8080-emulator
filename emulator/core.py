@@ -1,35 +1,61 @@
 
-def ADD(acc, tmp, cy=0):
+# ALU
+def ADD(acc, tmp, flags):
     """ Add """
-    return (acc + tmp + cy)
+    return ADC(acc, tmp, 0)
 
-def ADC(acc, tmp, cy=0):
+def ADC(acc, tmp, flags):
     """ Add with carry """
-    return ADD(acc, tmp, cy)
+    cy = (acc + tmp + (flags & 0x01)) // 256
+    ac = (acc % 16 + tmp % 16 + (flags & 0x01)) // 16
+    acc = (acc + tmp + flags & 0x01) % 256
+    flags = Z(acc) | S(acc) | P(acc) | cy 
+    return acc, flags
 
-def SUB(acc, tmp, cy=0):
+def SUB(acc, tmp, flags):
     """ Subtract """
-    return ADD(acc, 256 - tmp, 256 - cy)
+    return ADD(acc, 256 - tmp, flags)
 
-def SBB(acc, tmp, cy=0):
+def SBB(acc, tmp, flags):
     """ Subtract with borrow """
-    return sub(acc, tmp, cy)
+    pass
 
-def ANA(acc, tmp, cy=0):
+def ANA(acc, tmp, flags):
     """ And """
-    return (acc & tmp)
+    acc = (acc & tmp)
+    flags = Z(acc) | S(acc) | P(acc)
+    return acc, flags
 
-def XRA(acc, tmp, cy=0):
+def XRA(acc, tmp, flags):
     """ Exclusive or """
-    return (acc ^ tmp)
+    acc = (acc ^ tmp)
+    flags = Z(acc) | S(acc) | P(acc)
+    return acc, flags
 
 def ORA(acc, tmp, cy=0):
     """ Or """
-    return (acc | tmp)
+    acc = (acc | tmp)
+    flags = Z(acc) | S(acc) | P(acc)
+    return acc, flags
 
-def CMP(acc, tmp, cy=0):
-    """ Compare """
-    return SUB(acc, tmp, cy)
+def CMP(acc, tmp, flags):
+    _, flags = SUB(acc, tmp, flags)
+    return acc, flags
+
+def INR(acc, tmp, flags):
+    """ Increment register """
+    acc, _flags = ADD(tmp, 1, flags)
+    return acc, (_flags & ~0x01) | (flags & 0x01)
+
+def DCR(acc, tmp, flags):
+    acc, _flags = SUB(tmp, 1, flags)
+    return acc, (_flags & ~0x01) | (flags & 0x01)
+
+def RLC(acc, tmp, flags):
+    cy = (acc << 1) // 256
+    acc = (acc << 1) % 256 + cy
+    flags = (flags & ~1) | cy
+    return acc, flags
 
 def ac(op, acc, tmp, cy=0):
     """ Auxiliary carry flag """
@@ -37,48 +63,33 @@ def ac(op, acc, tmp, cy=0):
         op(acc & 0x0f, tmp & 0x0f, cy) // 16
     ) << 4
 
-def c(op, acc, tmp, cy=0):
+def cy(op, acc, tmp, cy=0):
     """ Carry flag """
     return bool(
         op(acc, tmp, cy) // 256
-    ) << 0
+    ) << 0 | 0x02
 
-def z(op, acc, tmp, cy=0):
-    """ Zero flag """ 
+def Z(acc):
+    """ 
+    Zero flag (Z)
+    """ 
     return bool(
         not op(acc, tmp, cy) % 256
-    ) << 6
+    ) << 6 | 0x02
 
-def s(op, acc, tmp, cy=0):
-    """ Sign flag """
+def S(acc):
+    """ 
+    Sign flag (S)
+    """
     return bool(
         op(acc, tmp, cy) & 0x80
-    ) << 7
+    ) << 7 | 0x02
 
-def p(op, acc, tmp, cy=0):
+def P(acc):
     """ Parity flag """
     return bool(
         0
     ) << 2
-
-def flags(op, acc, tmp, cy=0):
-    return (
-        1 << 1 |
-        s(op, acc, tmp, cy) |
-        z(op, acc, tmp, cy) |
-        p(op, acc, tmp, cy) |
-        ac(op, acc, tmp, cy) |
-        c(op, acc, tmp, cy)
-    )
-
-def alu(op, acc, tmp, cy=0):
-    return(
-        flags(op, acc, tmp, cy),
-        op(acc, tmp, cy) % 256
-    )
-
-def exec(op, acc, tmp, cy=0):
-    return ALU(op, acc, tmp, cy)
 
 def DAD(acc_16, tmp_16):
     flags, acc_lo = ADD(acc_16 % 256, tmp_16 % 256)
