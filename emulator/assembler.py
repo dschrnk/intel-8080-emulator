@@ -154,3 +154,5 @@ SBB_M		= 0x9e
 SBB_A		= 0x9f
 ANA_B		= 0xa0
 ANA_C		= 0xa1
+
+JMP         = 0xc3

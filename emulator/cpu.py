@@ -1,16 +1,9 @@
-from .alu import *
+from .core          import *
+from .registers     import *
+from .flags         import *
+from .alu           import *
 
 class CPU:
-
-    # Registers
-    B   = 0
-    C   = 1
-    D   = 2
-    E   = 3
-    H   = 4
-    L   = 5
-    M   = 6
-    A   = 7
 
     # Flags
     CY  = 0x01
@@ -61,8 +54,8 @@ class CPU:
 
     def __init_dispatch(self):
         self.dispatch[0x00] = self.NOP
-        self.dispatch[0x01] = self.LXI_BC
-        self.dispatch[0x02] = self.STAX_BC
+        self.dispatch[0x01] = self.LXI
+        self.dispatch[0x02] = self.STAX
         self.dispatch[0x03] = self.INX
         self.dispatch[0x04] = self.INR
         self.dispatch[0x05] = self.DCR
@@ -77,8 +70,8 @@ class CPU:
         self.dispatch[0x0e] = self.MVI
         self.dispatch[0x0f] = self.RRC
 
-        self.dispatch[0x11] = self.LXI_DE
-        self.dispatch[0x12] = self.STAX_DE
+        self.dispatch[0x11] = self.LXI
+        self.dispatch[0x12] = self.STAX
         self.dispatch[0x13] = self.INX
         self.dispatch[0x14] = self.INR
         self.dispatch[0x15] = self.DCR
@@ -93,7 +86,7 @@ class CPU:
         self.dispatch[0x1e] = self.MVI
         self.dispatch[0x1f] = self.RAR
 
-        self.dispatch[0x21] = self.LXI_HL
+        self.dispatch[0x21] = self.LXI
         self.dispatch[0x22] = self.SHLD
         self.dispatch[0x23] = self.INX
         self.dispatch[0x24] = self.INR
@@ -109,7 +102,7 @@ class CPU:
         self.dispatch[0x2e] = self.MVI
         self.dispatch[0x2f] = self.CMA
 
-        self.dispatch[0x31] = self.LXI_SP
+        self.dispatch[0x31] = self.LXI
         self.dispatch[0x32] = self.STA
         self.dispatch[0x33] = self.INX
         self.dispatch[0x34] = self.INR
@@ -232,6 +225,14 @@ class CPU:
         self.dispatch[0xa3] = self.ANA
         self.dispatch[0xa4] = self.ANA
         self.dispatch[0xa5] = self.ANA
+        self.dispatch[0xa6] = self.ANA
+        self.dispatch[0xa7] = self.ANA
+
+        self.dispatch[0xa8] = self.XRA
+        self.dispatch[0xa9] = self.XRA
+        self.dispatch[0xaa] = self.XRA
+
+        self.dispatch[0xc3] = self.JMP
 
     def load(self, addr, arr):
         for idx, data in enumerate(arr):
@@ -249,21 +250,8 @@ class CPU:
         self.sp = 0x8000
         self.halt = False
     
-    def get_flag(self, flag):
+    def flag(self, flag):
         return bool(self.flags & flag)
-
-    # register pairs
-    def get_BC(self):
-        """ Get register pair BC """
-        return 256 * self.regs[CPU.B] + self.regs[CPU.C]
-    
-    def get_DE(self):
-        """ Get register pair DE """
-        return 256 * self.regs[CPU.D] + self.regs[CPU.E]
-    
-    def get_HL(self):
-        """ Get register pair HL """
-        return 256 * self.regs[CPU.H] + self.regs[CPU.L]
     
     def get_pair(self, rp):
         return 256 * self.regs[rp] + self.regs[rp + 1]
@@ -272,25 +260,25 @@ class CPU:
         self.regs[rp] = data_16 // 256
         self.regs[rp + 1] = data_16 % 256
     
-    def __get_rp(self):
-        return self.get_pair(self.__rp())
+    def __get_RP(self):
+        return self.get_pair(self.__RP())
     
-    def __set_rp(self, data_16):
-        self.set_pair(self.__rp(), data_16)
+    def __set_RP(self, data_16):
+        self.set_pair(self.__RP(), data_16)
     
     def set_BC(self, data_16):
         """ Set register pair BC """
-        self.set_pair(CPU.B, data_16)
+        self.set_pair(B, data_16)
     
     def set_DE(self, data_16):
         """ Set register pair DE """
-        self.regs[CPU.D] = data_16 // 256
-        self.regs[CPU.E] = data_16 % 256
+        self.regs[D] = data_16 // 256
+        self.regs[E] = data_16 % 256
     
     def set_HL(self, data_16):
         """ Set register pair HL """
-        self.regs[CPU.H] = data_16 // 256
-        self.regs[CPU.L] = data_16 % 256
+        self.regs[H] = data_16 // 256
+        self.regs[L] = data_16 % 256
 
     def fetch(self):
         data = self.read(self.pc)
@@ -343,78 +331,62 @@ class CPU:
         self.store(self.get_HL(), data)
 
     def __update_conds(self):
-        self.conds[0] =  not self.get_flag(CPU.CY)
-        self.conds[1] =      self.get_flag(CPU.CY)
-        self.conds[2] =  not self.get_flag(CPU.Z)
-        self.conds[3] =      self.get_flag(CPU.Z)
-        self.conds[4] =  not self.get_flag(CPU.S)
-        self.conds[5] =      self.get_flag(CPU.S)
-        self.conds[6] =  not self.get_flag(CPU.P)
-        self.conds[7] =      self.get_flag(CPU.P)
+        self.conds[0] =  not self.flag(CY)
+        self.conds[1] =      self.flag(CY)
+        self.conds[2] =  not self.flag(Z)
+        self.conds[3] =      self.flag(Z)
+        self.conds[4] =  not self.flag(S)
+        self.conds[5] =      self.flag(S)
+        self.conds[6] =  not self.flag(P)
+        self.conds[7] =      self.flag(P)
     
-    def __rs(self):
+    def __RS(self):
         """ decode source register index """
         return self.ir & 0x07
 
-    def __rd(self):
+    def __RD(self):
         """ decode destination register index """
         return (self.ir & 0x38) >> 3
     
-    def __rp(self):
+    def __RP(self):
         return (self.ir & 0x03) >> 4
     
-    def __get_rs(self):
-        if self.__rs() == CPU.M:
+    def __get_RS(self):
+        if self.__RS() == M:
             return self.read_M()
         else:
-            return self.regs[self.__rs()]
+            return self.regs[self.__RS()]
     
-    def __get_rd(self):
-        if self.__rd() == CPU.M:
+    def __get_RD(self):
+        if self.__RD() == M:
             return self.read_M()
         else:
-            return self.regs[self.__rd()]
+            return self.regs[self.__RD()]
     
-    def __set_rd(self, data):
-        if self.__rd() == CPU.M:
+    def __set_RD(self, data):
+        if self.__RD() == M:
             self.store_M(data)
         else:
-            self.regs[self.__rd()] = data
+            self.regs[self.__RD()] = data
 
-    def __cc(self):
+    def __CC(self):
         """ decode condition code """
         return (self.ir & 0x38) >> 3
     
-    def __nn(self):
+    def __NN(self):
         """ decode n """
         return (self.ir & 0x38) >> 3
     
     def MOV(self):
-        self.__set_rd(self.__get_rs())
+        self.__set_RD(self.__get_RS())
     
     def MVI(self):
         """ Move immediate register """
-        self.__set_rd(self.fetch())
+        self.__set_RD(self.fetch())
     
     def LXI(self):
         """ Load register pair immediate """
-        pass
-
-    def LXI_BC(self):
-        """ Load register pair BC immediate """
-        self.set_BC(self.fetch_16())
-    
-    def LXI_DE(self):
-        """ Load register pair DE immediate """
-        self.set_DE(self.fetch_16())
-    
-    def LXI_HL(self):
-        """ Load register pair HL immediate """
-        self.__set_HL(self.fetch_16())
-    
-    def LXI_SP(self):
-        """ Load stack pointer immediate """
-        self.sp = self.fetch_16()
+        self.__set_RP(self.fetch_16())
     
     def LDA(self):
         """ Load accumulator direct """
@@ -431,7 +403,9 @@ class CPU:
         ))
     
     def SHLD(self):
-        """ Store H and L direct """
+        """ 
+        Store H and L direct 
+        """
         self.store_16(self.fetch_16(), self.get_HL())
     
     def LDAX(self):
@@ -439,40 +413,34 @@ class CPU:
         Load accumulator indirect
         BC or DE
         """
-        self.regs[CPU.A] = self.read(self.__get_rp())
+        self.regs[A] = self.read(self.__get_RP())
     
     def STAX(self):
         """ Store accumulator indirect """
-        pass
-    
-    def STAX_BC(self):
-        """ Store accumulator indirect BC """
-        self.store(self.get_BC(), self.regs[A])
-    
-    def STAX_DE(self):
-        """ Store accumulator indirect DE """
-        self.store(self.get_DE(), self.regs[A])
+        self.store(self.__get_RP(), self.regs[A])
     
     def XCHG(self):
         self.regs[H], self.regs[D] = self.regs[D], self.regs[H]
         self.regs[L], self.regs[E] = self.regs[E], self.regs[L]
 
     def __ADD(self, tmp):
-        acc, flags = ADD(self.regs[CPU.A], tmp, 0)
-        self.regs[CPU.A] = acc
+        acc, flags = ADD(self.regs[A], tmp, 0)
+        self.regs[A] = acc
         self.flags = flags
 
     def ADD(self):
         """ Add register """
-        self.ALU(ADD, self.__get_rs())
+        acc, flags = ADD(self.regs[A], self.__get_RS(), self.flags)
+        self.regs[A] = acc
+        self.flags = flags
     
     def ADI(self):
         """ Add immediate """
         self.__ADD(self.fetch())
     
     def ADC(self):
-        acc, flags = ADC(self.acc, self.__get_rs(), self.flags)
-        self.regs[CPU.A] = acc
+        acc, flags = ADC(self.acc, self.__get_RS(), self.flags)
+        self.regs[A] = acc
         self.flags = flags
     
     def ACI(self):
@@ -486,7 +454,7 @@ class CPU:
 
     def SUB(self):
         """ Subtract register """
-        self.__SUB(self.regs[self.__rs])
+        self.__SUB(self.regs[self.__RS])
     
     def SUI(self):
         """ Subtract immediate """
@@ -499,26 +467,29 @@ class CPU:
 
     def SBB(self):
         """ Subtract register with borrow """
-        self.SBB(self.regs[self.__rs])
+        self.SBB(self.regs[self.__RS])
 
     def SBI(self):
         """ Subtract immediate with borrow """
         self.alu.SBB(self.fetch())
     
-    def INR(self, tmp):
-        acc, flags = INR(0, self.__get_rs(), self.flags)
-        self.regs[CPU.A] = acc
+    def INR(self):
+        """ Increment register """
+        acc, flags = INR(0, self.__get_RD(), self.flags)
+        self.__set_RD(acc)
         self.flags = flags
     
     def DCR(self):
         """ Decrement register """
-        self.__set_rd((self.__get_rd() + 255) % 256)
+        acc, flags = DCR(0, self.__get_RD(), self.flags)
+        self.__set_RD(acc)
+        self.flags = flags
     
     def INX(self, tmp_16):
         """ Increment register pair """
-        tmp_16 = self.__get_rp()
+        tmp_16 = self.__get_RP()
 
-        if self.__rp() == 4:
+        if self.__RP() == 4:
             tmp_16 = self.pc
 
         # ALU additions
@@ -527,24 +498,24 @@ class CPU:
 
         # update state
         self.flags = (flags & ALU.CY) | (self.flags & ~ALU.CY)
-        self.__set_rp(256 * acc_hi + acc_lo)
+        self.__set_RP(256 * acc_hi + acc_lo)
     
     def DCX(self):
         """ Decrement register pair """
-        tmp_lo, tmp_hi  = self.__get_rp() % 256, self.__get_rp() // 256
+        tmp_lo, tmp_hi  = self.__get_RP() % 256, self.__get_RP() // 256
 
         acc_lo, flags   = SUB(tmp_lo, 1, self.flags)
         acc_hi, _       = SBB(tmp_hi, 0, flags)
         
-        self.__set_rp(256 * acc_hi + acc_lo)
+        self.__set_RP(256 * acc_hi + acc_lo)
     
     def DAD(self, tmp_16):
-        tmp_lo, tmp_hi          = self.__get_rp() % 256, self.__get_rp() // 256
+        tmp_lo, tmp_hi          = self.__get_RP() % 256, self.__get_RP() // 256
 
-        self.regs[CPU.L], flags = ADD(self.regs[CPU.L], tmp_lo, self.flags)
-        self.regs[CPU.H], flags = ADC(self.regs[CPU.H], tmp_hi, flags)
+        self.regs[L], flags = ADD(self.regs[L], tmp_lo, self.flags)
+        self.regs[H], flags = ADC(self.regs[H], tmp_hi, flags)
 
-        self.flags = (flags & CPU.CY) | (self.flags & ~CPU.CY)
+        self.flags = (flags & CY) | (self.flags & ~CY)
     
     def DAA(self):
         """ Decimal adjust accumulator """
@@ -559,7 +530,7 @@ class CPU:
     
     def XRA(self):
         """ Exclusive OR register """
-        self.alu.XRA(self.regs[self.__rs])
+        self.alu.XRA(self.regs[self.__RS])
 
     def XRI(self):
         """ Exclusive OR immediate """
@@ -567,7 +538,7 @@ class CPU:
     
     def ORA(self):
         """ OR register """
-        self.alu.ORA(self.regs[self.__rs])
+        self.alu.ORA(self.regs[self.__RS])
     
     def ORI(self):
         """ OR immediate """
@@ -586,7 +557,7 @@ class CPU:
     
     def RLC(self):
         """ Rotate left """
-        self.rega[A]
+        self.regs[A]
         self.alu.RLC()
     
     def RRC(self):
@@ -603,15 +574,15 @@ class CPU:
     
     def CMA(self):
         """ Complement accumulator """
-        self.regs[CPU.A] = 255 - self.regs[CPU.A]
+        self.regs[A] = 255 - self.regs[A]
     
     def CMC(self):
         """ Complement carry """
-        self.flags ^= CPU.CY
+        self.flags ^= CY
     
     def STC(self):
         """ Set carry """
-        self.flags |= CPU.CY
+        self.flags |= CY
     
     def JMP(self):
         """ Jump """
@@ -624,12 +595,12 @@ class CPU:
     
     def JCC(self):
         """ Conditional jump """
-        if self.conds[self.__cc()]:
+        if self.conds[self.__CC()]:
             self.JMP()
     
     def CCC(self):
         """ Condition call """
-        if self.conds[self.__cc()]:
+        if self.conds[self.__CC()]:
             self.CALL()
     
     def RET(self):
@@ -638,13 +609,13 @@ class CPU:
     
     def RCC(self):
         """ Conditional return """
-        if self.conds[self.__cc()]:
+        if self.conds[self.__CC()]:
             self.RET()
     
     def RST(self):
         """ Restart """
         self.push_16(self.pc)
-        self.pc = 8 * self.__NN
+        self.pc = 8 * self.__NN()
     
     def PCHL(self):
         """ Jump H and L indirect """
@@ -653,7 +624,7 @@ class CPU:
     def PUSH(self):
         """ Push """
         self.push_16(
-            self.__get_rp()
+            self.__get_RP()
         )
     
     def PUSH_BC(self):
@@ -676,7 +647,12 @@ class CPU:
 
     def POP(self):
         """ Pop """
-        pass
+        data_16 = self.pop_16()
+        if self.__RD() == SP:
+            # TODO: set PSW
+            pass
+        else:
+            self.__set_RP(data_16)
     
     def POP_BC(self):
         """ Pop register pair BC """
@@ -704,7 +680,7 @@ class CPU:
     
     def SPHL(self):
         """ Move HL to SP """
-        pass
+        self.sp = self.get_pair(HL)
     
     def IN(self):
         """ Input """

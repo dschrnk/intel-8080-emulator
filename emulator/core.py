@@ -1,5 +1,6 @@
+from .flags import *
 
-# ALU
+
 def ADD(acc, tmp, flags):
     """ Add """
     return ADC(acc, tmp, 0)
@@ -9,7 +10,7 @@ def ADC(acc, tmp, flags):
     cy = __CY(acc, tmp, flags)
     ac = __AC(acc, tmp, flags)
     acc = (acc + tmp + (flags & 0x01)) % 256
-    flags = __Z(acc) | __S(acc) | __P(acc) | cy | ac
+    flags = __Z(acc) | __S(acc) | __P(acc) | cy | ac | 0x02
     return acc, flags
  
 def SUB(acc, tmp, flags):
@@ -39,28 +40,45 @@ def ORA(acc, tmp, cy=0):
     return acc, flags
 
 def CMP(acc, tmp, flags):
+    """ Compare """
     _, flags = SUB(acc, tmp, flags)
     return acc, flags
 
 def INR(acc, tmp, flags):
     """ Increment register """
-    acc, _flags = ADD(tmp, 1, flags)
-    return acc, (_flags & ~0x01) | (flags & 0x01)
+    cy = flags & CY
+    acc, flags = ADD(tmp, 1, flags)
+    return acc, (flags & ~CY) | cy
 
 def DCR(acc, tmp, flags):
-    acc, _flags = SUB(tmp, 1, flags)
-    return acc, (_flags & ~0x01) | (flags & 0x01)
+    """ Decrement register """
+    cy = flags & cy
+    acc, flags = SUB(tmp, 1, flags)
+    return acc, (flags & ~CY) | cy
 
 def RLC(acc, tmp, flags):
+    """ Rotate left """
     cy = (acc << 1) // 256
     acc = (acc << 1) % 256 + cy
     flags = (flags & ~1) | cy
     return acc, flags
 
+def RRC(acc, tmp, flags):
+    """ Rotate right """
+    pass
+
+def RAL(acc, tmp, flags):
+    """ Rotate left through carry """
+    pass
+
+def RAR(acc, tmp, flags):
+    """ Rotate right through carry """
+    pass
+
 def __AC(op, acc, tmp, cy=0):
     """ Auxiliary carry flag """
     return bool(
-        op(acc & 0x0f, tmp & 0x0f, cy) // 16
+        0
     ) << 4
 
 def __CY(acc, tmp, flags):
