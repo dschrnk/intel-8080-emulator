@@ -1,5 +1,22 @@
 from .core import *
 
+class ALU2:
+
+    def __init__(self, act, tmp, flags):
+        self.act = act
+        self.tmp = tmp
+        self.flags = flags
+    
+    def ADD(self):
+        self.res = (self.act + self.tmp) % 256
+    
+    def ADC(self):
+        pass
+    
+    def INR(self):
+        self.ADD()
+        
+ 
 class ALU:
 
     CY      = 0x01
@@ -22,26 +39,6 @@ class ALU:
         return bool(
             self.flags & f
         )
-    
-    def z(self):
-        """ Get Z flag """
-        return self.get(ALU.Z)
-    
-    def s(self):
-        """ Get S flag """
-        return self.get(ALU.S)
-        
-    def p(self):
-        """ Get P flag """
-        return self.get(ALU.P)
-    
-    def ac(self):
-        """ Get AC flag """
-        return self.get(ALU.AC)
-    
-    def cy(self):
-        """ Get CY flag """
-        return self.get(ALU.CY)
     
     def PSW(self):
         return self.flags << 8 | self.ACC

@@ -1,5 +1,4 @@
 from .alu import *
-from .core import DAD, INX
 
 class CPU:
 
@@ -60,139 +59,19 @@ class CPU:
 
         self.cycles = 0
 
-
-    def load(self, addr, arr):
-        for idx, data in enumerate(arr):
-            self.mem[addr + idx] = data
-    
-    def exec(self):
-        while not self.halt:
-            self.ir = self.fetch()
-            #self.__conds.update()
-            self.__exec()
-    
-    def __exec(self):
-        self.dispatch[self.ir]()
-    
-    def reset(self):
-        self.alu.reset()
-        self.pc = 0x0000
-        self.sp = 0x8000
-        self.halt = False
-    
-    # register pairs
-    def get_BC(self):
-        """ Get register pair BC """
-        return 256 * self.regs[CPU.B] + self.regs[CPU.C]
-    
-    def get_DE(self):
-        """ Get register pair DE """
-        return 256 * self.regs[CPU.D] + self.regs[CPU.E]
-    
-    def get_HL(self):
-        """ Get register pair HL """
-        return 256 * self.regs[CPU.H] + self.regs[CPU.L]
-    
-    def get_rp(self, rp):
-        return 256 * self.regs[rp] + self.regs[rp + 1]
-    
-    def set_rp(self, rp, data_16):
-        self.regs[rp] = data_16 // 256
-        self.regs[rp + 1] = data_16 % 256
-    
-    def set_BC(self, data_16):
-        """ Set register pair BC """
-        self.set_rp(CPU.B, data_16)
-    
-    def set_DE(self, data_16):
-        """ Set register pair DE """
-        self.regs[CPU.D] = data_16 // 256
-        self.regs[CPU.E] = data_16 % 256
-    
-    def set_HL(self, data_16):
-        """ Set register pair HL """
-        self.regs[CPU.H] = data_16 // 256
-        self.regs[CPU.L] = data_16 % 256
-
-    def fetch(self):
-        data = self.read(self.pc)
-        self.pc += 1
-        return data
-    
-    def read(self, addr):
-        self.cycles += 1
-        return self.mem[addr]
-    
-    def store(self, addr, data):
-        self.cycles += 1
-        self.mem[addr] = data
-    
-    def read_16(self, addr):
-        self.cycles += 2
-        return self.read(addr) + 256 * self.read(addr + 1)
-    
-    def store_16(self, addr, data_16):
-        self.store(addr, data_16 % 256)
-        self.store(addr + 1, data_16 // 256)
-
-    # memory operation
-
-    def fetch(self):
-        data = self.read(self.pc)
-        self.pc += 1
-        return data
-    
-    def fetch_16(self):
-        data = self.read_16(self.pc)
-        self.pc += 2
-        return data
-    
-    # stack operations
-    
-    def pop_16(self):
-        data_16 = self.read_16(self.sp)
-        self.sp += 2
-        return data_16
-
-    def push_16(self, data_16):
-        self.sp -= 2
-        self.store_16(self.sp, data_16)
-
-    def read_M(self):
-        return self.read(self.get_HL())
-    
-    def store_M(self, data):
-        self.store(self.get_HL(), data)
-    
-    def update_C(self):
-        self.conds[0] = self.alu.CY()
-    
-    def update_NC(self):
-        self.conds[1] = not self.alu.CY()
-
-    def update_Z(self):
-        self.conds[2] = self.alu.Z()
-    
-    def update_NZ(self):
-        self.conds[3] = not self.alu.Z()
-
-    def update_conds(self):
-        self.conds[0x00] = not self.alu.Z()
-        self.conds[0x01] = self.alu.Z()
-
     def __init_dispatch(self):
         self.dispatch[0x00] = self.NOP
         self.dispatch[0x01] = self.LXI_BC
         self.dispatch[0x02] = self.STAX_BC
-        self.dispatch[0x03] = self.INX_BC
+        self.dispatch[0x03] = self.INX
         self.dispatch[0x04] = self.INR
         self.dispatch[0x05] = self.DCR
         self.dispatch[0x06] = self.MVI
         self.dispatch[0x07] = self.RLC
         
-        self.dispatch[0x09] = self.DAD_BC
-        self.dispatch[0x0a] = self.LDAX_BC
-        self.dispatch[0x0b] = self.DCX_BC
+        self.dispatch[0x09] = self.DAD
+        self.dispatch[0x0a] = self.LDAX
+        self.dispatch[0x0b] = self.DCX
         self.dispatch[0x0c] = self.INR
         self.dispatch[0x0d] = self.DCR
         self.dispatch[0x0e] = self.MVI
@@ -200,15 +79,15 @@ class CPU:
 
         self.dispatch[0x11] = self.LXI_DE
         self.dispatch[0x12] = self.STAX_DE
-        self.dispatch[0x13] = self.INX_DE
+        self.dispatch[0x13] = self.INX
         self.dispatch[0x14] = self.INR
         self.dispatch[0x15] = self.DCR
         self.dispatch[0x16] = self.MVI
         self.dispatch[0x17] = self.RAL
         
-        self.dispatch[0x19] = self.DAD_DE
-        self.dispatch[0x1a] = self.LDAX_DE
-        self.dispatch[0x1b] = self.DCX_DE
+        self.dispatch[0x19] = self.DAD
+        self.dispatch[0x1a] = self.LDAX
+        self.dispatch[0x1b] = self.DCX
         self.dispatch[0x1c] = self.INR
         self.dispatch[0x1d] = self.DCR
         self.dispatch[0x1e] = self.MVI
@@ -216,15 +95,15 @@ class CPU:
 
         self.dispatch[0x21] = self.LXI_HL
         self.dispatch[0x22] = self.SHLD
-        self.dispatch[0x23] = self.INX_HL
+        self.dispatch[0x23] = self.INX
         self.dispatch[0x24] = self.INR
         self.dispatch[0x25] = self.DCR
         self.dispatch[0x26] = self.MVI
         self.dispatch[0x27] = self.DAA
 
-        self.dispatch[0x29] = self.DAD_HL
+        self.dispatch[0x29] = self.DAD
         self.dispatch[0x2a] = self.LHLD
-        self.dispatch[0x2b] = self.DCX_HL
+        self.dispatch[0x2b] = self.DCX
         self.dispatch[0x2c] = self.INR
         self.dispatch[0x2d] = self.DCR
         self.dispatch[0x2e] = self.MVI
@@ -232,15 +111,15 @@ class CPU:
 
         self.dispatch[0x31] = self.LXI_SP
         self.dispatch[0x32] = self.STA
-        self.dispatch[0x33] = self.INX_SP
+        self.dispatch[0x33] = self.INX
         self.dispatch[0x34] = self.INR
         self.dispatch[0x35] = self.DCR
         self.dispatch[0x36] = self.MVI
         self.dispatch[0x37] = self.STC
 
-        self.dispatch[0x39] = self.DAD_SP
+        self.dispatch[0x39] = self.DAD
         self.dispatch[0x3a] = self.LDA
-        self.dispatch[0x3b] = self.DCX_SP
+        self.dispatch[0x3b] = self.DCX
         self.dispatch[0x3c] = self.INR
         self.dispatch[0x3d] = self.DCR
         self.dispatch[0x3e] = self.MVI
@@ -349,6 +228,129 @@ class CPU:
 
         self.dispatch[0xa0] = self.ANA
         self.dispatch[0xa1] = self.ANA
+        self.dispatch[0xa2] = self.ANA
+        self.dispatch[0xa3] = self.ANA
+        self.dispatch[0xa4] = self.ANA
+        self.dispatch[0xa5] = self.ANA
+
+    def load(self, addr, arr):
+        for idx, data in enumerate(arr):
+            self.mem[addr + idx] = data
+    
+    def exec(self):
+        while not self.halt:
+            self.ir = self.fetch()
+            #self.__conds.update()
+            self.dispatch[self.ir]()
+    
+    def reset(self):
+        self.alu.reset()
+        self.pc = 0x0000
+        self.sp = 0x8000
+        self.halt = False
+    
+    def get_flag(self, flag):
+        return bool(self.flags & flag)
+
+    # register pairs
+    def get_BC(self):
+        """ Get register pair BC """
+        return 256 * self.regs[CPU.B] + self.regs[CPU.C]
+    
+    def get_DE(self):
+        """ Get register pair DE """
+        return 256 * self.regs[CPU.D] + self.regs[CPU.E]
+    
+    def get_HL(self):
+        """ Get register pair HL """
+        return 256 * self.regs[CPU.H] + self.regs[CPU.L]
+    
+    def get_pair(self, rp):
+        return 256 * self.regs[rp] + self.regs[rp + 1]
+    
+    def set_pair(self, rp, data_16):
+        self.regs[rp] = data_16 // 256
+        self.regs[rp + 1] = data_16 % 256
+    
+    def __get_rp(self):
+        return self.get_pair(self.__rp())
+    
+    def __set_rp(self, data_16):
+        self.set_pair(self.__rp(), data_16)
+    
+    def set_BC(self, data_16):
+        """ Set register pair BC """
+        self.set_pair(CPU.B, data_16)
+    
+    def set_DE(self, data_16):
+        """ Set register pair DE """
+        self.regs[CPU.D] = data_16 // 256
+        self.regs[CPU.E] = data_16 % 256
+    
+    def set_HL(self, data_16):
+        """ Set register pair HL """
+        self.regs[CPU.H] = data_16 // 256
+        self.regs[CPU.L] = data_16 % 256
+
+    def fetch(self):
+        data = self.read(self.pc)
+        self.pc += 1
+        return data
+    
+    def read(self, addr):
+        self.cycles += 1
+        return self.mem[addr]
+    
+    def store(self, addr, data):
+        self.cycles += 1
+        self.mem[addr] = data
+    
+    def read_16(self, addr):
+        self.cycles += 2
+        return self.read(addr) + 256 * self.read(addr + 1)
+    
+    def store_16(self, addr, data_16):
+        self.store(addr, data_16 % 256)
+        self.store(addr + 1, data_16 // 256)
+
+    # memory operation
+
+    def fetch(self):
+        data = self.read(self.pc)
+        self.pc += 1
+        return data
+    
+    def fetch_16(self):
+        data = self.read_16(self.pc)
+        self.pc += 2
+        return data
+    
+    # stack operations
+    
+    def pop_16(self):
+        data_16 = self.read_16(self.sp)
+        self.sp += 2
+        return data_16
+
+    def push_16(self, data_16):
+        self.sp -= 2
+        self.store_16(self.sp, data_16)
+
+    def read_M(self):
+        return self.read(self.get_HL())
+    
+    def store_M(self, data):
+        self.store(self.get_HL(), data)
+
+    def __update_conds(self):
+        self.conds[0] =  not self.get_flag(CPU.CY)
+        self.conds[1] =      self.get_flag(CPU.CY)
+        self.conds[2] =  not self.get_flag(CPU.Z)
+        self.conds[3] =      self.get_flag(CPU.Z)
+        self.conds[4] =  not self.get_flag(CPU.S)
+        self.conds[5] =      self.get_flag(CPU.S)
+        self.conds[6] =  not self.get_flag(CPU.P)
+        self.conds[7] =      self.get_flag(CPU.P)
     
     def __rs(self):
         """ decode source register index """
@@ -357,6 +359,9 @@ class CPU:
     def __rd(self):
         """ decode destination register index """
         return (self.ir & 0x38) >> 3
+    
+    def __rp(self):
+        return (self.ir & 0x03) >> 4
     
     def __get_rs(self):
         if self.__rs() == CPU.M:
@@ -430,16 +435,11 @@ class CPU:
         self.store_16(self.fetch_16(), self.get_HL())
     
     def LDAX(self):
-        """ Load accumulator indirect """
-        pass
-    
-    def LDAX_BC(self):
-        """ Load accumulator indirect BC """
-        self.alu.ACC = self.read(self.get_BC())
-    
-    def LDAX_DE(self):
-        """ Load accumulator indirect DE """
-        self.alu.ACC = self.read(self.get_DE())
+        """
+        Load accumulator indirect
+        BC or DE
+        """
+        self.regs[CPU.A] = self.read(self.__get_rp())
     
     def STAX(self):
         """ Store accumulator indirect """
@@ -456,11 +456,6 @@ class CPU:
     def XCHG(self):
         self.regs[H], self.regs[D] = self.regs[D], self.regs[H]
         self.regs[L], self.regs[E] = self.regs[E], self.regs[L]
-    
-    def ALU(self, op, tmp):
-        acc, flags = op(self.regs[CPU.A], tmp, self.flags)
-        self.regs[CPU.A] = acc
-        self.flags = flags
 
     def __ADD(self, tmp):
         acc, flags = ADD(self.regs[CPU.A], tmp, 0)
@@ -475,8 +470,10 @@ class CPU:
         """ Add immediate """
         self.__ADD(self.fetch())
     
-    def ADC(self, tmp):
-        self.flags, self.acc = alu(ADC, self.acc, tmp, 0)
+    def ADC(self):
+        acc, flags = ADC(self.acc, self.__get_rs(), self.flags)
+        self.regs[CPU.A] = acc
+        self.flags = flags
     
     def ACI(self):
         """ Add immediate with carry """
@@ -509,82 +506,45 @@ class CPU:
         self.alu.SBB(self.fetch())
     
     def INR(self, tmp):
-        flags, tmp = alu(ADD, 0, tmp, 1)
+        acc, flags = INR(0, self.__get_rs(), self.flags)
+        self.regs[CPU.A] = acc
         self.flags = flags
-        return tmp
     
     def DCR(self):
         """ Decrement register """
         self.__set_rd((self.__get_rd() + 255) % 256)
     
-    def __INX_rp(self, tmp_16):
+    def INX(self, tmp_16):
         """ Increment register pair """
+        tmp_16 = self.__get_rp()
+
+        if self.__rp() == 4:
+            tmp_16 = self.pc
+
+        # ALU additions
+        acc_lo, flags = ADD(tmp_16 % 256, 1, self.flags)
+        acc_hi, flags = ADC(tmp_16 // 256, 0, flags)
+
+        # update state
+        self.flags = (flags & ALU.CY) | (self.flags & ~ALU.CY)
+        self.__set_rp(256 * acc_hi + acc_lo)
     
-    def INX_BC(self):
-        """ Increment register pair BC """
-        _, tmp_16 = INX(self.get_BC())
-        self.set_BC(tmp_16)
-    
-    def INX_DE(self):
-        """ Increment register pair DE """
-        _, tmp_16 = INX(self.get_DE())
-        self.set_DE(tmp_16)
-    
-    def INX_HL(self):
-        """ Increment register pair HL """
-        self.set_HL(
-            (self.get_HL() + 1) % 65536
-        )
-    
-    def INX_SP(self):
-        """ Increment stack pointer """
-        _, tmp_16 = INX(self.sp)
-        self.sp = tmp_16
-    
-    def __DCX_rp(self):
+    def DCX(self):
         """ Decrement register pair """
-        pass
-    
-    def DCX_BC(self):
-        """ Decrement register pair BC """
-        _, _, res_16 = alu.DCX_16(self.get_BC())
-        self.set_BC(res_16)
-    
-    def DCX_DE(self):
-        """ Decrement register pair DE """
-        _, _, res_16 = alu.DCX_16(self.get_DE())
-        self.set_DE(res_16)
-    
-    def DCX_HL(self):
-        """ Decrement register pair HL """
-        _, _, res_16 = alu.DCX_16(self.get_HL())
-        self.set_HL(res_16)
-    
-    def DCX_SP(self):
-        """ Decrement SP """
-        _, _, res_16 = alu.DCX_16(self.sp)
-        self.sp = res_16
+        tmp_lo, tmp_hi  = self.__get_rp() % 256, self.__get_rp() // 256
+
+        acc_lo, flags   = SUB(tmp_lo, 1, self.flags)
+        acc_hi, _       = SBB(tmp_hi, 0, flags)
+        
+        self.__set_rp(256 * acc_hi + acc_lo)
     
     def DAD(self, tmp_16):
-        flags, acc_16 = DAD(self.get_HL(), tmp_16)
-        self.set_HL(acc_16)
-        self.alu.flags = (flags & ALU.CY) | (self.flags & ~ALU.CY)
+        tmp_lo, tmp_hi          = self.__get_rp() % 256, self.__get_rp() // 256
 
-    def DAD_BC(self):
-        """ Add register pair BC to HL """
-        self.__DAD_rp(self.get_BC())
-    
-    def DAD_DE(self):
-        """ Add register pair DE to HL """
-        self.__DAD_rp(self.get_DE())
-    
-    def DAD_HL(self):
-        """ Add register pair HL to HL """
-        self.__DAD_rp(self.get_HL())
-    
-    def DAD_SP(self):
-        """ Add SP to HL """
-        self.__DAD_rp(self.sp)
+        self.regs[CPU.L], flags = ADD(self.regs[CPU.L], tmp_lo, self.flags)
+        self.regs[CPU.H], flags = ADC(self.regs[CPU.H], tmp_hi, flags)
+
+        self.flags = (flags & CPU.CY) | (self.flags & ~CPU.CY)
     
     def DAA(self):
         """ Decimal adjust accumulator """
@@ -643,15 +603,15 @@ class CPU:
     
     def CMA(self):
         """ Complement accumulator """
-        self.alu.CMA()
+        self.regs[CPU.A] = 255 - self.regs[CPU.A]
     
     def CMC(self):
         """ Complement carry """
-        self.alu.CMC()
+        self.flags ^= CPU.CY
     
     def STC(self):
         """ Set carry """
-        self.alu.STC()
+        self.flags |= CPU.CY
     
     def JMP(self):
         """ Jump """
@@ -664,12 +624,12 @@ class CPU:
     
     def JCC(self):
         """ Conditional jump """
-        if self.__conds.get(self.__CC):
+        if self.conds[self.__cc()]:
             self.JMP()
     
     def CCC(self):
         """ Condition call """
-        if self.__conds.get(self.__CC):
+        if self.conds[self.__cc()]:
             self.CALL()
     
     def RET(self):
@@ -678,10 +638,10 @@ class CPU:
     
     def RCC(self):
         """ Conditional return """
-        if self.__conds.get(self.__CC):
+        if self.conds[self.__cc()]:
             self.RET()
     
-    def rsT(self):
+    def RST(self):
         """ Restart """
         self.push_16(self.pc)
         self.pc = 8 * self.__NN
