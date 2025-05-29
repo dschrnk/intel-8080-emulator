@@ -7,7 +7,7 @@ from emulator.flags import *
 
 def test_cpu():
     cpu = CPU()
-    cpu.load(0x0000, [
+    cpu.load([
         NOP,
         MVI_B, 0x12,
         MOV_C_B,
@@ -18,7 +18,7 @@ def test_cpu():
     assert(
         cpu.regs[B],
         cpu.regs[C],
-        cpu.alu.ACC
+        cpu.regs[A]
     ) == (
         0x12,
         0x12,
@@ -32,7 +32,7 @@ def test_ADD():
         HLT
     ]
     cpu = CPU()
-    cpu.load(0x0000, rom)
+    cpu.load(rom)
     cpu.exec()
 
     print(cpu.flags)
@@ -44,7 +44,7 @@ def test_ADD():
 
 def test_ADD_2():
     cpu = CPU()
-    cpu.load(0x0000, [
+    cpu.load([
         MVI_B, 0x80,
         ADD_B,
         ADD_B,
@@ -61,13 +61,15 @@ def test_ADD_2():
 def test_JMP():
     cpu = CPU()
 
-    cpu.load(0x0000, [
+    cpu.load([
         NOP,
-        JMP, 0x00, 0x10,
-        NOP
-    ])
-
-    cpu.load(0x1000, [
+        JMP, 0x08, 0x00,
+        HLT,
+        NOP,
+        NOP,
+        NOP,
+        NOP,
+        NOP,
         MVI_B, 0x01,
         HLT
     ])
@@ -77,4 +79,4 @@ def test_JMP():
     assert(
         cpu.pc,
         cpu.regs[B]
-    ) == (0x1003, 0x01)
+    ) == (0x000d, 0x01)
