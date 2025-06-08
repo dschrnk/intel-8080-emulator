@@ -1,6 +1,5 @@
 from .flags import *
 
-
 def ADD(acc, tmp, flags):
     """ Add """
     return ADC(acc, tmp, 0)
@@ -19,7 +18,7 @@ def SUB(acc, tmp, flags):
 
 def SBB(acc, tmp, flags):
     """ Subtract with borrow """
-    pass
+    return ADC(acc, 255 - tmp, flags)
 
 def ANA(acc, tmp, flags):
     """ And """
@@ -78,29 +77,45 @@ def RAR(acc, tmp, flags):
 def __AC(op, acc, tmp, cy=0):
     """ Auxiliary carry flag """
     return bool(
-        0
+        op(acc % 16, tmp % 16, flags) // 16
     ) << 4
 
-def __CY(acc, tmp, flags):
+def __CY(op, acc, tmp, flags):
     """ Carry flag """
     return bool(
-        (acc + tmp + (flags & CY)) // 256
+        op(acc, tmp, flags) // 256
     ) << 0
 
 def __Z(acc):
     """ Zero flag (Z) """ 
     return bool(
-        not acc
+        op(acc, tmp, flags) == 0
     ) << 6
 
-def __S(acc):
+def __S(op, acc, tmp, flags):
     """ Sign flag (S) """
     return bool(
-        acc & 0x80
+        op(acc, tmp, flags) & 0x80
     ) << 7
 
-def __P(acc):
+def __P(op, acc, tmp, flags):
     """ Parity flag """
     return bool(
         0
     ) << 2
+
+def __flags(op, acc, tmp, flags):
+    return(
+        0x02 |
+        __Z(op, acc, tmp, flags) |
+        __S(op, acc, tmp, flags) |
+        __P(op, acc, tmp, flags) |
+        __AC(op, acc, tmp, flags) |
+        __CY(op, acc, tmp, flags)
+    )
+
+def pack(data_lo, data_hi):
+    return (data_hi << 8) | data_lo
+
+def unpack(data_16):
+    return data_16 >> 8, data_16 & 0xff
