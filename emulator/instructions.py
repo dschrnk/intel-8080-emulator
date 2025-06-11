@@ -121,7 +121,7 @@ def SUB(cpu, alu):
     accumulator. 
     
     """
-    cpu.A, cpu.flags = alu.SUB(cpu.A, cpu.src)
+    cpu.A, cpu.flags = alu.sub(cpu.A, cpu.src)
 
 def SUI(cpu, alu):
     """ 
@@ -134,15 +134,15 @@ def SUI(cpu, alu):
     result is placed in the accumulator. 
     
     """
-    cpu.A, cpu.flags = alu.SUB(cpu.A, cpu.fetch())
+    cpu.A, cpu.flags = alu.sub(cpu.A, cpu.fetch())
 
 def SBB(cpu, alu):
     """ Subtract register with borrow """
-    cpu.A, cpu.flags = alu.SBB(cpu.A, cpu.src, cpu.CY)
+    cpu.A, cpu.flags = alu.sbb(cpu.A, cpu.src, cpu.CY)
 
 def SBI(cpu, alu):
     """ Subtract immediate with borrow """
-    cpu.A, cpu.flags = alu.SBB(cpu.A, cpu.fetch(), cpu.CY)
+    cpu.A, cpu.flags = alu.sbb(cpu.A, cpu.fetch(), cpu.CY)
 
 def INR(cpu, alu):
     """ 
@@ -167,7 +167,7 @@ def DCR(cpu, alu):
     Note: All condition flags except CY are affected. 
     
     """
-    cpu.dst, flags = alu.SUB(cpu.dst, 1)
+    cpu.dst, flags = alu.sub(cpu.dst, 1)
     cpu.flags = (flags & ~CY) | (cpu.flags & CY)    # preserve cy
 
 def INX(cpu, alu):
@@ -185,8 +185,8 @@ def INX(cpu, alu):
 
 def DCX(cpu, alu):
     """ Decrement register pair """
-    cpu.rl, flags = alu.SUB(cpu.rl, 1)
-    cpu.rh, _     = alu.SBB(cpu.rh, 0, flags & CY)
+    cpu.rl, flags = alu.sub(cpu.rl, 1)
+    cpu.rh, _     = alu.sbb(cpu.rh, 0, flags & CY)
 
 def DAD(cpu, alu):
     cpu.L, flags = alu.add(cpu.L, cpu.rl)
@@ -199,35 +199,35 @@ def DAA(cpu, alu):
     pass
 
 def ANA(cpu, alu):
-    cpu.A, cpu.flags = alu.ANA(cpu.A, cpu.src)
+    cpu.A, cpu.flags = alu.ana(cpu.A, cpu.src)
 
 def ANI(cpu, alu):
     """ And immediate """
-    cpu.A, cpu.flags = alu.ANA(cpu.A, cpu.fetch())
+    cpu.A, cpu.flags = alu.ana(cpu.A, cpu.fetch())
 
 def XRA(cpu, alu):
     """ Exclusive OR register """
-    cpu.A, cpu.flags = alu.XRA(cpu.A, cpu.src)
+    cpu.A, cpu.flags = alu.xra(cpu.A, cpu.src)
 
 def XRI(cpu, alu):
     """ Exclusive OR immediate """
-    cpu.A, cpu.flags = alu.XRA(cpu.A, cpu.fetch())
+    cpu.A, cpu.flags = alu.xra(cpu.A, cpu.fetch())
 
 def ORA(cpu, alu):
     """ OR register """
-    cpu.A, cpu.flags = alu.ORA(cpu.A, cpu.src)
+    cpu.A, cpu.flags = alu.ora(cpu.A, cpu.src)
 
 def ORI(cpu, alu):
     """ OR immediate """
-    cpu.A, cpu.flags = alu.ORA(cpu.A, cpu.fetch())
+    cpu.A, cpu.flags = alu.ora(cpu.A, cpu.fetch())
 
 def CMP(cpu, alu):
     """ Compare register """
-    _, cpu.flags = alu.SUB(cpu.A, cpu.src)
+    _, cpu.flags = alu.sub(cpu.A, cpu.src)
 
 def CPI(cpu, alu):
     """ Compare immediate """
-    _, cpu.flags = alu.SUB(cpu.A, cpu.fetch())
+    _, cpu.flags = alu.sub(cpu.A, cpu.fetch())
 
 def RLC(cpu, alu):
     """ Rotate left """
@@ -269,6 +269,7 @@ def CALL(cpu, alu):
 def JCC(cpu, alu):
     """ Conditional jump """
     if cpu.cond():
+        print("Jump")
         JMP(cpu, alu)
 
 def CCC(cpu, alu):
@@ -283,7 +284,7 @@ def RET(cpu, alu):
 def RCC(cpu, alu):
     """ Conditional return """
     if cpu.cond():
-        self.RET(cpu)
+        RET(cpu, alu)
 
 def RST(cpu, alu):
     """ Restart """
@@ -356,7 +357,6 @@ def HLT(cpu, alu):
 
 def NOP(cpu, alu):
     """ No op """
-    print("nop")
     pass
 
 dispatch = [

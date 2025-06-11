@@ -156,3 +156,4 @@ ANA_B		= 0xa0
 ANA_C		= 0xa1
 
 JMP         = 0xc3
+JZ          = 0xca

@@ -1,5 +1,5 @@
 from .flags import encode, decode, s, z, p
-from .core import *
+from .core  import *
 
 
 def __add_4(act_4, tmp_4, cy):
@@ -13,6 +13,9 @@ def __add(act, tmp, cy):
     cy, acc_h = __add_4(act // 16, tmp // 16, ac)
     acc = (acc_h << 4) | acc_l
     return acc, ac, cy
+
+def add(act, tmp):
+    return adc(act, tmp)
 
 def adc(act, tmp, cy=0):
     acc, ac, cy = __add(act, tmp, cy)
@@ -41,6 +44,10 @@ def ora(act, tmp):
     flags = encode(s, z, 0, p, 0)
     return acc, flags
 
+def cmp(act, tmp):
+    _, flags = sub(act, tmp)
+    return act, flags
+
 class ALU:
 
     def add(self, act, tmp):
@@ -53,7 +60,7 @@ class ALU:
         return sub(act, tmp)
     
     def SBB(self, act, tmp, cy=0):
-        return self.SBB(act, tmp, flags)
+        return sbb(act, tmp, flags)
     
     def ana(self, act, tmp):
         return ana(act, tmp)

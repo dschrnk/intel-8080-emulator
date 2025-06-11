@@ -74,3 +74,22 @@ def test_JMP():
         cpu.pc,
         cpu.B
     ) == (0x000d, 0x01)
+
+def test_JZ():
+    cpu = CPU()
+
+    cpu.load([
+        MVI_A,  0x01,
+        SUB_A,
+        JZ,     0x08,   0x00,
+        HLT,
+        NOP,
+        MVI_B,  0xff,
+        HLT
+    ])
+
+    cpu.run()
+
+    assert(
+        cpu.A, cpu.B, cpu.Z
+    ) == (0x00, 0xff, 1)

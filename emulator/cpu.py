@@ -237,7 +237,7 @@ class CPU:
     
     @property
     def cond(self):
-        return self.conds[self.__COND]
+        return self.conds[self.__CCC()]
 
     def reset(self):
         self.alu.reset()
