@@ -1,7 +1,8 @@
 from .registers     import *
-from .flags         import *
+from .flags         import Z, S, AC, P, CY, encode, decode
 from .alu           import ALU
 from .core          import pack, unpack
+from .instructions  import dispatch
 
 class CPU:
 
@@ -11,7 +12,7 @@ class CPU:
         self.pc = 0x0000
 
         # stack pointer
-        self.sp = 0xBEEF
+        self.sp = 0xbeef
 
         # 8-bit registers
         self.acc = 0x00
@@ -30,7 +31,7 @@ class CPU:
         self.halt = False
 
         # memory
-        self.mem = [0x00] * 64 * (1 << 10)
+        self.mem = [0x00] * 64 * (1 << 10)  # 64 KiB
 
         #self.__init_optable()
 
@@ -40,6 +41,12 @@ class CPU:
 
         self.cycles = 0
 
+        # interrupts
+        self.ints = False
+
+        # I/O ports
+        self.ports = [0x00] * 256
+
 
     def dispatch(self):
         return self.optable[self.ir]
@@ -48,6 +55,14 @@ class CPU:
         for idx, data in enumerate(arr):
             self.mem[idx] = data
 
+    def run(self):
+        while not self.halt:
+            self.ir = self.fetch()
+            ins = self.dispatch()
+            ins(self, self.alu)
+    
+    def dispatch(self):
+        return dispatch[self.ir]
     
     def __get_register(self, r):
         if r == M:
@@ -58,25 +73,32 @@ class CPU:
     def __set_register(self, r, data):
         if r == M:
             self.set_M(data)
+        else:
+            self.regs[r] = data
 
     @property
     def A(self):
+        """ Get register A """
         return self.regs[A]
     
     @A.setter
     def A(self, data):
+        """ Set register A """
         self.regs[A] = data
     
     @property
     def B(self):
+        """ Get register B """
         return self.regs[B]
 
     @B.setter
     def B(self, data):
+        """ Set register B """
         self.regs[B] = data
     
     @property
     def C(self):
+        """ Get register C """
         return self.regs[C]
     
     @C.setter
@@ -92,6 +114,14 @@ class CPU:
         self.regs[D] = data
     
     @property
+    def H(self):
+        return self.regs[H]
+    
+    @property
+    def L(self):
+        return self.regs[L]
+
+    @property
     def M(self):
         return self.read(self.HL)
     
@@ -101,6 +131,7 @@ class CPU:
     
     @property
     def src(self):
+        """ Get dynamic src register """
         if self.__SRC() == M:
             return self.M
         else:
@@ -108,7 +139,7 @@ class CPU:
         
     @src.setter
     def src(self, data):
-        self.__set_reg(self.__SRC(), data)
+        self.__set_register(self.__SRC(), data)
     
     @property
     def dst(self):
@@ -116,7 +147,7 @@ class CPU:
     
     @dst.setter
     def dst(self, data):
-        self.__set_reg(self.__DST(), data)
+        self.__set_register(self.__DST(), data)
     
     @property
     def BC(self):
@@ -183,6 +214,11 @@ class CPU:
     def Z(self):
         return bool(self.flags & Z)
     
+    @Z.setter
+    def Z(self, val):
+        s, _, p, ac, cy = decode(self.flags)
+        self.flags = encode(s, bool(val), p, ac, cy)
+    
     @property
     def S(self):
         return bool(self.flags & S)
@@ -206,7 +242,7 @@ class CPU:
     def reset(self):
         self.alu.reset()
         self.pc = 0x0000
-        self.sp = 0xBEEF
+        self.sp = 0xbeef
         self.halt = False
     
     def flag(self, flag):
@@ -299,3 +335,16 @@ class CPU:
     def __NNN(self):
         """ decode n """
         return (self.ir & 0x38) >> 3
+
+    def jmp(self, addr):
+        """ Jump """
+        self.pc = addr
+    
+    def call(self, addr):
+        """ Call """
+        self.push_16(self.pc)
+        self.pc = addr
+    
+    def ret(self):
+        """ Return """
+        self.pc = self.pop_16()

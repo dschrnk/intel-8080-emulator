@@ -2,8 +2,6 @@ import unittest
 
 from emulator import CPU
 from emulator.assembler import *
-from emulator.registers import *
-from emulator.flags import *
 
 def test_cpu():
     cpu = CPU()
@@ -14,15 +12,11 @@ def test_cpu():
         HLT
     ])
 
-    cpu.exec()
+    cpu.run()
     assert(
-        cpu.regs[B],
-        cpu.regs[C],
-        cpu.regs[A]
+        cpu.B, cpu.C, cpu.A
     ) == (
-        0x12,
-        0x12,
-        0x00
+        0x12, 0x12, 0x00
     )
 
 def test_ADD():
@@ -33,12 +27,12 @@ def test_ADD():
     ]
     cpu = CPU()
     cpu.load(rom)
-    cpu.exec()
+    cpu.run()
 
     print(cpu.flags)
 
     assert(
-        cpu.regs[A],
+        cpu.A,
         cpu.flags
     ) == (0x01, 0x02)
 
@@ -50,13 +44,13 @@ def test_ADD_2():
         ADD_B,
         HLT
     ])
-    cpu.exec()
+    cpu.run()
 
     assert(
-        cpu.regs[A],
-        cpu.regs[B],
-        cpu.flag(CY)
-    ) == (0x00, 0x80, True)
+        cpu.A,
+        cpu.B,
+        cpu.CY
+    ) == (0x00, 0x80, 1)
 
 def test_JMP():
     cpu = CPU()
@@ -74,9 +68,9 @@ def test_JMP():
         HLT
     ])
 
-    cpu.exec()
+    cpu.run()
 
     assert(
         cpu.pc,
-        cpu.regs[B]
+        cpu.B
     ) == (0x000d, 0x01)
